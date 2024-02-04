@@ -1,7 +1,7 @@
 import socket
 from PyQt5.QtGui import QFont
-from registerWindow import Ui_RegisterWindow
-from whatsapp_main import Ui_MainWhatsapp
+from RegisterWindow import Ui_RegisterWindow
+from WhatsappMain import Ui_MainWhatsapp
 import sys
 from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtGui import QFont, QMouseEvent
@@ -90,7 +90,7 @@ class UiMainWindow(object):
 
         self.send.clicked.connect(self.send_function)
         self.register_button.clicked.connect(lambda: self.register("Yes"))
-        # connection socket
+
         client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_address = (SERVER_IP, SERVER_PORT)
         client_sock.connect(server_address)

@@ -3,23 +3,22 @@ import threading
 import json
 import hashlib
 
-NUM_OF_CLIENTS = 3
-LISTEN_PORT = 1  # Choose a suitable port number
+NUM_OF_CLIENTS = 1
+LISTEN_PORT = 8865
 
-listening_soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_address = ('', LISTEN_PORT)
-listening_soc.bind(server_address)
 
 HISTORY = {}
 USERS = {"daniel": hashlib.sha256("12345".encode()).hexdigest(), "yossi": hashlib.sha256("1".encode()).hexdigest()}
 
+
 class User:
     instances = []
 
-    def __init__(self,client_soc, client_address):
+    def __init__(self, client_soc, client_address):
         self.client_soc, self.client_address = client_soc, client_address
 
         is_correct = False
+        name = ''
         while not is_correct:
             self.client_msg = self.client_soc.recv(1024).decode()
             if self.client_msg[0] == "1":
@@ -62,7 +61,6 @@ class User:
             print(HISTORY)
             self.__class__.instances.remove(self)
 
-
     def send(self):
         for instance in User.instances:
             if self.sent_to == instance.name:
@@ -83,11 +81,17 @@ class User:
             HISTORY[self.sent_to][self.name] = [("{}@{}\n".format(self.name, self.client_msg))]
         print(f"{self.name} history is {HISTORY[self.name]}")
 
-# Create a TCP/IP socket
-listening_soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_address = ('', LISTEN_PORT)
-listening_soc.bind(server_address)
-while True:
-    listening_soc.listen(1)
-    client_soc, client_address = listening_soc.accept()
-    threading.Thread(target=User, args=(client_soc,client_address)).start()
+
+def main():
+    # Create a TCP/IP socket
+    listening_soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_address = ('', LISTEN_PORT)
+    listening_soc.bind(server_address)
+    while True:
+        listening_soc.listen(1)
+        client_soc, client_address = listening_soc.accept()
+        threading.Thread(target=User, args=(client_soc, client_address)).start()
+
+
+if __name__ == '__main__':
+    main()

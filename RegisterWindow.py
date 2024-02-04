@@ -13,7 +13,7 @@ from functools import partial
 
 from PyQt5.QtGui import QFont
 
-from whatsapp_main import Ui_MainWhatsapp
+from WhatsappMain import Ui_MainWhatsapp
 import time
 
 SERVER_IP = "127.0.0.1"
