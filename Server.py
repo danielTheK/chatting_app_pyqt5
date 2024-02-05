@@ -9,6 +9,7 @@ NUM_OF_CLIENTS = 1
 LISTEN_PORT = 8865
 
 USERS_PATH = 'users.pickle'
+HISTORY_PATH = 'history.pickle'
 
 
 def get_users():
@@ -24,8 +25,21 @@ def update_users(new_users):
         pickle.dump(new_users, f)
 
 
+def get_history():
+    try:
+        with open(HISTORY_PATH, 'rb') as f:
+            return pickle.load(f)
+    except EOFError:
+        return {}
+
+
+def update_history(new_users):
+    with open(HISTORY_PATH, 'wb') as f:
+        pickle.dump(new_users, f)
+
+
 users = get_users()
-history = {}
+history = get_history()
 
 
 class User:
@@ -60,6 +74,7 @@ class User:
         self.name = name
         self.client_soc.recv(1024)
         if self.name in history:
+            print(f'history[self.name]={history[self.name]}')
             self.client_soc.sendall(json.dumps(history[self.name]).encode())
         else:
             history[self.name] = {}
@@ -97,6 +112,7 @@ class User:
         else:
             history[self.sent_to] = {}
             history[self.sent_to][self.name] = [("{}@{}\n".format(self.name, self.client_msg))]
+        update_history(history)
         print(f"{self.name} history is {history[self.name]}")
 
 

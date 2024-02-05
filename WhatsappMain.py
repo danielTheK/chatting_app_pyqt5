@@ -17,9 +17,8 @@ from PyQt5.QtWidgets import (QAction, QActionGroup, QApplication, QMenu,
                              QPlainTextEdit, QVBoxLayout)
 from enchant.utils import trim_suggestions
 
-CHATS = {}
 
-
+chats = {}
 
 
 class SpellTextEdit(QPlainTextEdit):
@@ -343,8 +342,9 @@ class Ui_MainWhatsapp(object):
         self.sendUpdateContact()
         self.default_widget_size = 0
         if "$$$" not in history:
-            global CHATS
-            CHATS = json.loads(history)
+            global chats
+            chats = json.loads(history)
+            print(f'chats={chats}')
 
     def retranslateUi(self, MainWhatsapp):
         self.run_thread_receiving_packets()  # starting the thread for receiving packets
@@ -362,7 +362,7 @@ class Ui_MainWhatsapp(object):
 
     def sendMessage(self):
         text = self.textEdit.toPlainText()
-        CHATS[self.currentContact.text()].append(f"{self.name}@{text}")
+        chats[self.currentContact.text()].append(f"{self.name}@{text}")
 
         self.addMessage(self.name, text)
 
@@ -380,9 +380,9 @@ class Ui_MainWhatsapp(object):
         message_item = QtWidgets.QListWidgetItem(self.message_list)
         message_item.setSizeHint(message_widget.sizeHint() + message_widget.reply_button.sizeHint())
         if name == self.name:
-            message_item.setBackground(QColor(20,255,20))
+            message_item.setBackground(QColor(20, 255, 20))
         else:
-            message_item.setBackground(QColor(255,0,0))
+            message_item.setBackground(QColor(255, 0, 0))
         if self.default_widget_size == 0:
             self.default_widget_size = message_item.sizeHint()
         # this is the problem:
@@ -414,11 +414,12 @@ class Ui_MainWhatsapp(object):
             item = QtWidgets.QListWidgetItem()
             item.setText(i)
             self.contacts.addItem(item)
+            print(i)
             self.add_to_CHATS(i)
 
     def add_to_CHATS(self, name):
-        if name not in CHATS:
-            CHATS[name] = []
+        if name not in chats:
+            chats[name] = []
 
     def changeCurrentContact(self):
         if len(self.contacts.selectedItems()) != 0:
@@ -430,7 +431,7 @@ class Ui_MainWhatsapp(object):
 
             self.message_list.clear()
 
-            for i in CHATS[name]:
+            for i in chats[name]:
                 self.addMessage(*i.split("@"))
 
     def addIcon(self, name):
@@ -461,7 +462,7 @@ class receiving_packets(QThread):
                 content = content[:-1]
                 self.obj.addIcon(name)
 
-                CHATS[name].append(message)
+                chats[name].append(message)
                 if name == self.obj.currentContact.text():
                     print(f"{content = }")
                     self.normal_message.emit(name, content)
