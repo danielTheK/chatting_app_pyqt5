@@ -16,7 +16,9 @@ from PyQt5.QtGui import (QFocusEvent, QSyntaxHighlighter, QTextBlockUserData,
 from PyQt5.QtWidgets import (QAction, QActionGroup, QApplication, QMenu,
                              QPlainTextEdit, QVBoxLayout)
 from enchant.utils import trim_suggestions
-
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 
 chats = {}
 
@@ -294,50 +296,71 @@ class MessageWidget(QtWidgets.QWidget):
 
 
 class Ui_MainWhatsapp(object):
+    def __init__(self):
+        self.currentContact = None
+        self.default_widget_size = None
+        self.statusbar = None
+        self.updateContacts = None
+        self.sendButton = None
+        self.textEdit = None
+        self.message_list = None
+        self.contacts = None
+        self.central_widget = None
+        self.client_sock = None
+        self.name = None
+        self.MainWhatsapp = None
+
     def setupUi(self, MainWhatsapp, name, client_sock):
         self.name = name
         self.client_sock = client_sock
-        self.MainWindow = MainWhatsapp
+        self.MainWhatsapp = MainWhatsapp
         self.client_sock.sendall("first".encode())
         history = self.client_sock.recv(1024).decode()
-        MainWhatsapp.setObjectName("MainWhatsapp")
+
         MainWhatsapp.resize(800, 600)
-        self.centralwidget = QtWidgets.QWidget(MainWhatsapp)
-        self.centralwidget.setObjectName("centralwidget")
+        self.central_widget = QWidget(MainWhatsapp)
+        self.central_widget.setObjectName(u"central_widget")
 
-        # Contacts List
-        self.contacts = QtWidgets.QListWidget(self.centralwidget)
-        self.contacts.setGeometry(QtCore.QRect(0, 60, 211, 491))
-        self.contacts.setObjectName("contacts")
+        self.contacts = QListWidget(self.central_widget)
+        self.contacts.setObjectName(u"contacts")
+        self.contacts.setGeometry(QRect(10, 40, 221, 531))
 
-        # Update Contacts Button
-        self.updateContacts = QtWidgets.QPushButton(self.centralwidget)
-        self.updateContacts.setGeometry(QtCore.QRect(0, 0, 211, 61))
-        self.updateContacts.setObjectName("updateContacts")
-        self.updateContacts.setText("Update contacts")
+        self.message_list = QListWidget(self.central_widget)
+        self.message_list.setObjectName(u"message_list")
+        self.message_list.setGeometry(QRect(230, 10, 551, 501))
 
-        # Current Contact Label
-        self.currentContact = QtWidgets.QLabel(self.centralwidget)
+        self.textEdit = QTextEdit(self.central_widget)
+        self.textEdit.setObjectName(u"textEdit")
+        self.textEdit.setGeometry(QRect(230, 510, 481, 61))
+        font = QFont()
+        font.setFamily(u"Yu Gothic UI")
+        font.setPointSize(14)
+        self.textEdit.setFont(font)
+        self.textEdit.setLineWidth(1)
+
+        self.sendButton = QPushButton(self.central_widget)
+        self.sendButton.setObjectName(u"sendButton")
+        self.sendButton.setGeometry(QRect(710, 510, 71, 61))
+        font1 = QFont()
+        font1.setFamily(u"Yu Gothic UI")
+        font1.setPointSize(12)
+        font1.setItalic(False)
+        self.sendButton.setFont(font1)
+
+        self.updateContacts = QPushButton(self.central_widget)
+        self.updateContacts.setObjectName(u"updateContacts")
+        self.updateContacts.setGeometry(QRect(10, 10, 221, 31))
+
+        self.currentContact = QtWidgets.QLabel(self.central_widget)
         self.currentContact.setGeometry(QtCore.QRect(210, 0, 591, 61))
         self.currentContact.setObjectName("currentContact")
 
-        # Chat List
-        self.message_list = QtWidgets.QListWidget(self.centralwidget)
-        self.message_list.setGeometry(QtCore.QRect(210, 60, 591, 380))
-        self.message_list.setObjectName("chat")
+        MainWhatsapp.setCentralWidget(self.central_widget)
+        self.statusbar = QStatusBar(MainWhatsapp)
+        self.statusbar.setObjectName(u"statusbar")
+        MainWhatsapp.setStatusBar(self.statusbar)
 
-        # Text Edit for typing messages
-        self.textEdit = QtWidgets.QTextEdit(self.centralwidget)
-        self.textEdit.setGeometry(QtCore.QRect(210, 440, 481, 81))
-        self.textEdit.setObjectName("textEdit")
-
-        # Send Button
-        self.sendButton = QtWidgets.QPushButton(self.centralwidget)
-        self.sendButton.setGeometry(QtCore.QRect(690, 440, 111, 81))
-        self.sendButton.setObjectName("sendButton")
-        MainWhatsapp.setCentralWidget(self.centralwidget)
-
-        self.retranslateUi(MainWhatsapp)
+        self.translate_ui(MainWhatsapp)
         QtCore.QMetaObject.connectSlotsByName(MainWhatsapp)
         self.sendUpdateContact()
         self.default_widget_size = 0
@@ -346,15 +369,23 @@ class Ui_MainWhatsapp(object):
             chats = json.loads(history)
             print(f'chats={chats}')
 
-    def retranslateUi(self, MainWhatsapp):
+    def translate_ui(self, MainWhatsapp):
         self.run_thread_receiving_packets()  # starting the thread for receiving packets
         _translate = QtCore.QCoreApplication.translate
-        MainWhatsapp.setWindowTitle(_translate("MainWhatsapp", "MainWindow"))
-        self.sendButton.setText(_translate("MainWhatsapp", "Send"))
-        self.contacts.setSortingEnabled(False)
+        MainWhatsapp.setWindowTitle(QCoreApplication.translate("MainWhatsapp", u"MainWhatsapp", None))
+        self.textEdit.setHtml(QCoreApplication.translate("MainWhatsapp",
+                                                         u"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
+                                                         "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
+                                                         "p, li { white-space: pre-wrap; }\n"
+                                                         "</style></head><body style=\" font-family:'Yu Gothic UI'; font-size:14pt; font-weight:400; font-style:normal;\">\n"
+                                                         "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p></body></html>",
+                                                         None))
+        self.textEdit.setPlaceholderText(QCoreApplication.translate("MainWhatsapp", u"Enter message...", None))
+        self.sendButton.setText(QCoreApplication.translate("MainWhatsapp", u"Send", None))
+        self.updateContacts.setText(QCoreApplication.translate("MainWhatsapp", u"Update Contacts", None))
         self.currentContact.setText("")
         self.currentContact.setFont(QtGui.QFont('Arial', 16))
-        self.currentContact.setAlignment(QtCore.Qt.AlignCenter)
+        self.currentContact.setAlignment(Qt.AlignCenter)
         # connections:
         self.updateContacts.clicked.connect(self.sendUpdateContact)
         self.sendButton.clicked.connect(self.sendMessage)
@@ -406,10 +437,12 @@ class Ui_MainWhatsapp(object):
 
     def update_contacts(self, contacts):
         print(self.contacts.selectedItems())
+
         try:
             self.contacts.clear()
         except:
             pass
+
         for i in contacts.split(","):
             item = QtWidgets.QListWidgetItem()
             item.setText(i)
