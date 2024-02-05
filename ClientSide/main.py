@@ -1,8 +1,8 @@
-import LoginWindow
+import EntryWindow
 
 
 def main():
-    LoginWindow.main()
+    EntryWindow.main()
 
 
 if __name__ == '__main__':
