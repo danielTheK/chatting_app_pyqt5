@@ -67,9 +67,9 @@ p, li { white-space: pre-wrap; }
     <property name="geometry">
      <rect>
       <x>710</x>
-      <y>510</y>
+      <y>530</y>
       <width>71</width>
-      <height>61</height>
+      <height>41</height>
      </rect>
     </property>
     <property name="font">
@@ -95,6 +95,31 @@ p, li { white-space: pre-wrap; }
     <property name="text">
      <string>Update Contacts</string>
     </property>
+   </widget>
+   <widget class="QComboBox" name="message_selection">
+    <property name="geometry">
+     <rect>
+      <x>710</x>
+      <y>510</y>
+      <width>71</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <item>
+     <property name="text">
+      <string>File</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Voice</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Image</string>
+     </property>
+    </item>
    </widget>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>

@@ -23,6 +23,25 @@ from PyQt5.QtWidgets import *
 chats = {}
 
 
+class FileWidget(QtWidgets.QWidget):
+    def __init__(self, filename, filesize):
+        super(FileWidget, self).__init__()
+        self.file_name = filename
+        self.filename_label = QLabel(f"File: {filename}")
+        self.filesize_label = QLabel(f"Size: {float(filesize):.2f} MB")
+        self.download_button = QPushButton("Download")
+
+        self.layout = QHBoxLayout(self)
+        self.layout.addWidget(self.filename_label)
+        self.layout.addWidget(self.filesize_label)
+        self.layout.addWidget(self.download_button)
+
+        self.download_button.clicked.connect(self.start_download)
+
+    def start_download(self):
+        print(f"The file {self.file_name} is downloading!")
+
+
 class SpellTextEdit(QPlainTextEdit):
     """QPlainTextEdit subclass which does spell-checking using PyEnchant"""
 
@@ -297,6 +316,7 @@ class MessageWidget(QtWidgets.QWidget):
 
 class Ui_MainWhatsapp(object):
     def __init__(self):
+        self.message_selection = None
         self.currentContact = None
         self.default_widget_size = None
         self.statusbar = None
@@ -340,7 +360,7 @@ class Ui_MainWhatsapp(object):
 
         self.sendButton = QPushButton(self.central_widget)
         self.sendButton.setObjectName(u"sendButton")
-        self.sendButton.setGeometry(QRect(710, 510, 71, 61))
+        self.sendButton.setGeometry(QRect(710, 530, 71, 41))
         font1 = QFont()
         font1.setFamily(u"Yu Gothic UI")
         font1.setPointSize(12)
@@ -354,6 +374,14 @@ class Ui_MainWhatsapp(object):
         self.currentContact = QtWidgets.QLabel(self.central_widget)
         self.currentContact.setGeometry(QtCore.QRect(210, 0, 591, 61))
         self.currentContact.setObjectName("currentContact")
+
+        self.message_selection = QtWidgets.QComboBox(self.central_widget)
+        self.message_selection.addItem("")
+        self.message_selection.addItem("")
+        self.message_selection.addItem("")
+        self.message_selection.setObjectName(u"message_selection")
+        self.message_selection.setGeometry(QRect(710, 510, 71, 21))
+        self.message_selection.setEditable(False)
 
         MainWhatsapp.setCentralWidget(self.central_widget)
         self.statusbar = QStatusBar(MainWhatsapp)
@@ -386,6 +414,10 @@ class Ui_MainWhatsapp(object):
         self.currentContact.setText("")
         self.currentContact.setFont(QtGui.QFont('Arial', 16))
         self.currentContact.setAlignment(Qt.AlignCenter)
+        self.message_selection.setItemText(0, QCoreApplication.translate("MainWhatsapp", u"File", None))
+        self.message_selection.setItemText(1, QCoreApplication.translate("MainWhatsapp", u"Voice", None))
+        self.message_selection.setItemText(2, QCoreApplication.translate("MainWhatsapp", u"Image", None))
+        self.message_selection.activated.connect(self.send_files_images_voice)
         # connections:
         self.updateContacts.clicked.connect(self.sendUpdateContact)
         self.sendButton.clicked.connect(self.sendMessage)
@@ -465,7 +497,32 @@ class Ui_MainWhatsapp(object):
             self.message_list.clear()
 
             for i in chats[name]:
+                if i[:3] == "8$$":
+                    self.add_notifies(i.split("@")[1], i.split("@")[2])
+                    continue
                 self.addMessage(*i.split("@"))
+
+    def send_files_images_voice(self):
+        file_path, _ = QFileDialog.getOpenFileName()
+        if file_path:
+            with open(file_path, "rb") as f:
+                file_data = f.read()
+            self.client_sock.sendall(
+                f"7$${self.currentContact.text()}@{file_path.split('/')[-1]}@{str(len(file_data) / 1048576)}@".encode() + file_data + b"$$END$$")
+            # protocol: 7$$sent_to@file_name@file_size@file_data$$END$$
+            self.add_notifies(file_path.split("/")[-1], len(file_data) / 1048576)
+
+    def add_notifies(self, file_name, size):
+        message_widget = FileWidget(file_name, size)
+        message_item = QtWidgets.QListWidgetItem(self.message_list)
+        message_item.setSizeHint(message_widget.sizeHint())
+        """if name == self.name:
+            message_item.setBackground(QColor(20, 255, 20))
+        else:
+            message_item.setBackground(QColor(255, 0, 0))
+        if self.default_widget_size == 0:
+            self.default_widget_size = message_item.sizeHint()"""
+        self.message_list.setItemWidget(message_item, message_widget)
 
     def addIcon(self, name):
         icon = QtGui.QIcon()

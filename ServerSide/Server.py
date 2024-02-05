@@ -3,13 +3,14 @@ import socket
 import threading
 import json
 import hashlib
-from typing import Any, Dict
 
 NUM_OF_CLIENTS = 1
 LISTEN_PORT = 8865
 
 USERS_PATH = 'users.pickle'
 HISTORY_PATH = 'history.pickle'
+FILE_ID_PATH = 'file-id.pickle'
+FILES_PATH = 'files.pickle'
 
 
 def get_users():
@@ -38,14 +39,43 @@ def update_history(new_users):
         pickle.dump(new_users, f)
 
 
+def get_file_id():
+    try:
+        with open(FILE_ID_PATH, 'rb') as f:
+            return pickle.load(f)
+    except EOFError:
+        return 0
+
+
+def update_file_id(new_file_id):
+    with open(FILE_ID_PATH, 'wb') as f:
+        pickle.dump(new_file_id, f)
+
+
+def get_files():
+    try:
+        with open(FILES_PATH, 'rb') as f:
+            return pickle.load(f)
+    except EOFError:
+        return {}
+
+
+def update_files(new_files):
+    with open(FILES_PATH, 'wb') as f:
+        pickle.dump(new_files, f)
+
+
 users = get_users()
 history = get_history()
+file_id = get_file_id()
+files = get_files()
 
 
 class User:
     instances = []
 
     def __init__(self, client_soc, client_address):
+        global file_id
         self.client_soc, self.client_address = client_soc, client_address
 
         is_correct = False
@@ -82,13 +112,26 @@ class User:
 
         try:
             while True:
-                self.client_msg = self.client_soc.recv(1024).decode()
-                if "@" in self.client_msg:
-                    self.sent_to, self.client_msg = self.client_msg.split("@")
-                    self.send()
-                elif self.client_msg == "121212":
-                    contacts = "$$" + ",".join([a for a in users if a != self.name])
-                    self.client_soc.sendall(contacts.encode())
+                self.client_msg = self.client_soc.recv(1024)
+                if self.client_msg[:3] == b"7$$":
+                    self.sent_to, file_name, size, file_data = self.client_msg[3:].split(b"@")
+                    self.sent_to, file_name = self.sent_to.decode(), file_name.decode()
+                    while file_data[-7:] != b"$$END$$":
+                        file_data += self.client_soc.recv(10024)
+                    file_data = file_data[:-7]
+                    with open(str(file_id), "wb") as f:
+                        f.write(file_data)
+                    file_id += 1
+                    size = size.decode()
+                    self.send_file_notification(file_name, size)
+                else:
+                    self.client_msg = self.client_msg.decode()
+                    if "@" in self.client_msg:
+                        self.sent_to, self.client_msg = self.client_msg.split("@")
+                        self.send()
+                    elif self.client_msg == "121212":
+                        contacts = "$$" + ",".join([a for a in users if a != self.name])
+                        self.client_soc.sendall(contacts.encode())
         except ConnectionResetError:
             print(f"The user {self.name} has disconnected")
             print(history)
@@ -112,6 +155,27 @@ class User:
         else:
             history[self.sent_to] = {}
             history[self.sent_to][self.name] = [("{}@{}\n".format(self.name, self.client_msg))]
+        update_history(history)
+        print(f"{self.name} history is {history[self.name]}")
+
+    def send_file_notification(self, file_name, file_size):  # protocol: 8$$sender@file_name@file_size
+        for instance in User.instances:
+            if self.sent_to == instance.name:
+                instance.client_soc.sendall(f"8$${self.name}@{file_name}@{file_size}".encode())
+
+        if self.sent_to in history[self.name]:
+            history[self.name][self.sent_to].append(f"8$${self.name}@{file_name}@{file_size}")
+        else:
+            history[self.name][self.sent_to] = [f"8$${self.name}@{file_name}@{file_size}"]
+
+        if self.sent_to in history:
+            if self.name in history[self.sent_to]:
+                history[self.sent_to][self.name].append(f"8$${self.name}@{file_name}@{file_size}")
+            else:
+                history[self.sent_to][self.name] = [f"8$${self.name}@{file_name}@{file_size}"]
+        else:
+            history[self.sent_to] = {}
+            history[self.sent_to][self.name] = [f"8$${self.name}@{file_name}@{file_size}"]
         update_history(history)
         print(f"{self.name} history is {history[self.name]}")
 
