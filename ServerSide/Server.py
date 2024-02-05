@@ -4,7 +4,6 @@ import threading
 import json
 import hashlib
 
-NUM_OF_CLIENTS = 1
 LISTEN_PORT = 8865
 
 USERS_PATH = 'users.pickle'

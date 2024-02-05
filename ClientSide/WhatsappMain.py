@@ -4,9 +4,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import json
 import sys
 import multiprocessing
-import enchant
-from enchant import tokenize
-from enchant.errors import TokenizerNotFoundError
+
 
 # pylint: disable=no-name-in-module
 from PyQt5.Qt import Qt
@@ -15,7 +13,6 @@ from PyQt5.QtGui import (QFocusEvent, QSyntaxHighlighter, QTextBlockUserData,
                          QTextCharFormat, QTextCursor, QPalette, QColor)
 from PyQt5.QtWidgets import (QAction, QActionGroup, QApplication, QMenu,
                              QPlainTextEdit, QVBoxLayout)
-from enchant.utils import trim_suggestions
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -40,220 +37,6 @@ class FileWidget(QtWidgets.QWidget):
 
     def start_download(self):
         print(f"The file {self.file_name} is downloading!")
-
-
-class SpellTextEdit(QPlainTextEdit):
-    """QPlainTextEdit subclass which does spell-checking using PyEnchant"""
-
-    # Clamping value for words like "regex" which suggest so many things that
-    # the menu runs from the top to the bottom of the screen and spills over
-    # into a second column.
-    max_suggestions = 20
-
-    def __init__(self, *args):
-        QPlainTextEdit.__init__(self, *args)
-
-        # Start with a default dictionary based on the current locale.
-        self.highlighter = EnchantHighlighter(self.document())
-        self.highlighter.setDict(enchant.Dict("en_us"))
-
-    def contextMenuEvent(self, event):
-        """Custom context menu handler to add a spelling suggestions submenu"""
-        popup_menu = self.createSpellcheckContextMenu(event.pos())
-        popup_menu.exec_(event.globalPos())
-
-        # Fix bug observed in Qt 5.2.1 on *buntu 14.04 LTS where:
-        # 1. The cursor remains invisible after closing the context menu
-        # 2. Keyboard input causes it to appear, but it doesn't blink
-        # 3. Switching focus away from and back to the window fixes it
-        self.focusInEvent(QFocusEvent(QEvent.FocusIn))
-
-    def createSpellcheckContextMenu(self, pos):
-        """Create and return an augmented default context menu.
-        This may be used as an alternative to the QPoint-taking form of
-        ``createStandardContextMenu`` and will work on pre-5.5 Qt.
-        """
-        try:  # Recommended for Qt 5.5+ (Allows contextual Qt-provided entries)
-            menu = self.createStandardContextMenu(pos)
-        except TypeError:  # Before Qt 5.5
-            menu = self.createStandardContextMenu()
-
-        # Add a submenu for setting the spell-check language
-        menu.addSeparator()
-        menu.addMenu(self.createLanguagesMenu(menu))
-        menu.addMenu(self.createFormatsMenu(menu))
-
-        # Try to retrieve a menu of corrections for the right-clicked word
-        spell_menu = self.createCorrectionsMenu(
-            self.cursorForMisspelling(pos), menu)
-
-        if spell_menu:
-            menu.insertSeparator(menu.actions()[0])
-            menu.insertMenu(menu.actions()[0], spell_menu)
-
-        return menu
-
-    def createCorrectionsMenu(self, cursor, parent=None):
-        """Create and return a menu for correcting the selected word."""
-        if not cursor:
-            return None
-
-        text = cursor.selectedText()
-        suggests = trim_suggestions(text,
-                                    self.highlighter.dict().suggest(text),
-                                    self.max_suggestions)
-
-        spell_menu = QMenu('Spelling Suggestions', parent)
-        for word in suggests:
-            action = QAction(word, spell_menu)
-            action.setData((cursor, word))
-            spell_menu.addAction(action)
-
-        # Only return the menu if it's non-empty
-        if spell_menu.actions():
-            spell_menu.triggered.connect(self.cb_correct_word)
-            return spell_menu
-
-        return None
-
-    def createLanguagesMenu(self, parent=None):
-        """Create and return a menu for selecting the spell-check language."""
-        curr_lang = self.highlighter.dict().tag
-        lang_menu = QMenu("Language", parent)
-        lang_actions = QActionGroup(lang_menu)
-
-        for lang in enchant.list_languages():
-            action = lang_actions.addAction(lang)
-            action.setCheckable(True)
-            action.setChecked(lang == curr_lang)
-            action.setData(lang)
-            lang_menu.addAction(action)
-
-        lang_menu.triggered.connect(self.cb_set_language)
-        return lang_menu
-
-    def createFormatsMenu(self, parent=None):
-        """Create and return a menu for selecting the spell-check language."""
-        fmt_menu = QMenu("Format", parent)
-        fmt_actions = QActionGroup(fmt_menu)
-
-        curr_format = self.highlighter.chunkers()
-        for name, chunkers in (('Text', []), ('HTML', [tokenize.HTMLChunker])):
-            action = fmt_actions.addAction(name)
-            action.setCheckable(True)
-            action.setChecked(chunkers == curr_format)
-            action.setData(chunkers)
-            fmt_menu.addAction(action)
-
-        fmt_menu.triggered.connect(self.cb_set_format)
-        return fmt_menu
-
-    def cursorForMisspelling(self, pos):
-        """Return a cursor selecting the misspelled word at ``pos`` or ``None``
-        This leverages the fact that QPlainTextEdit already has a system for
-        processing its contents in limited-size blocks to keep things fast.
-        """
-        cursor = self.cursorForPosition(pos)
-        misspelled_words = getattr(cursor.block().userData(), 'misspelled', [])
-
-        # If the cursor is within a misspelling, select the word
-        for (start, end) in misspelled_words:
-            if start <= cursor.positionInBlock() <= end:
-                block_pos = cursor.block().position()
-
-                cursor.setPosition(block_pos + start, QTextCursor.MoveAnchor)
-                cursor.setPosition(block_pos + end, QTextCursor.KeepAnchor)
-                break
-
-        if cursor.hasSelection():
-            return cursor
-        else:
-            return None
-
-    def cb_correct_word(self, action):  # pylint: disable=no-self-use
-        """Event handler for 'Spelling Suggestions' entries."""
-        cursor, word = action.data()
-
-        cursor.beginEditBlock()
-        cursor.removeSelectedText()
-        cursor.insertText(word)
-        cursor.endEditBlock()
-
-    def cb_set_language(self, action):
-        """Event handler for 'Language' menu entries."""
-        lang = action.data()
-        self.highlighter.setDict(enchant.Dict(lang))
-
-    def cb_set_format(self, action):
-        """Event handler for 'Language' menu entries."""
-        chunkers = action.data()
-        self.highlighter.setChunkers(chunkers)
-        # TODO: Emit an event so this menu can trigger other things
-
-
-class EnchantHighlighter(QSyntaxHighlighter):
-    """QSyntaxHighlighter subclass which consults a PyEnchant dictionary"""
-    tokenizer = None
-    token_filters = (tokenize.EmailFilter, tokenize.URLFilter)
-
-    # Define the spellcheck style once and just assign it as necessary
-    # XXX: Does QSyntaxHighlighter.setFormat handle keeping this from
-    #      clobbering styles set in the data itself?
-    err_format = QTextCharFormat()
-    err_format.setUnderlineColor(Qt.red)
-    err_format.setUnderlineStyle(QTextCharFormat.SpellCheckUnderline)
-
-    def __init__(self, *args):
-        QSyntaxHighlighter.__init__(self, *args)
-
-        # Initialize private members
-        self._sp_dict = None
-        self._chunkers = []
-
-    def chunkers(self):
-        """Gets the chunkers in use"""
-        return self._chunkers
-
-    def dict(self):
-        """Gets the spelling dictionary in use"""
-        return self._sp_dict
-
-    def setChunkers(self, chunkers):
-        """Sets the list of chunkers to be used"""
-        self._chunkers = chunkers
-        self.setDict(self.dict())
-        # FIXME: Revert self._chunkers on failure to ensure consistent state
-
-    def setDict(self, sp_dict):
-        """Sets the spelling dictionary to be used"""
-        try:
-            self.tokenizer = tokenize.get_tokenizer(sp_dict.tag,
-                                                    chunkers=self._chunkers, filters=self.token_filters)
-        except TokenizerNotFoundError:
-            # Fall back to the "good for most euro languages" English tokenizer
-            self.tokenizer = tokenize.get_tokenizer(
-                chunkers=self._chunkers, filters=self.token_filters)
-        self._sp_dict = sp_dict
-
-        self.rehighlight()
-
-    def highlightBlock(self, text):
-        """Overridden QSyntaxHighlighter method to apply the highlight"""
-        if not self._sp_dict:
-            return
-
-        # Build a list of all misspelled words and highlight them
-        misspellings = []
-        for (word, pos) in self.tokenizer(text):
-            if not self._sp_dict.check(word):
-                self.setFormat(pos, len(word), self.err_format)
-                misspellings.append((pos, pos + len(word)))
-
-        # Store the list so the context menu can reuse this tokenization pass
-        # (Block-relative values so editing other blocks won't invalidate them)
-        data = QTextBlockUserData()
-        data.misspelled = misspellings
-        self.setCurrentBlockUserData(data)
 
 
 class MessageWidget(QtWidgets.QWidget):
@@ -314,6 +97,13 @@ class MessageWidget(QtWidgets.QWidget):
         self.delete_button.setVisible(False)
 
 
+size = QtWidgets.QApplication(sys.argv).primaryScreen().availableGeometry()
+width, height = size.width(), size.height()
+print(f"{height = }, {width = }")
+height_ratio = height / 1080
+width_ratio = width / 1920
+
+
 class Ui_MainWhatsapp(object):
     def __init__(self):
         self.message_selection = None
@@ -336,43 +126,32 @@ class Ui_MainWhatsapp(object):
         self.MainWhatsapp = MainWhatsapp
         self.client_sock.sendall("first".encode())
         history = self.client_sock.recv(1024).decode()
-
-        MainWhatsapp.resize(800, 600)
+        MainWhatsapp.resize(int(800 * width_ratio), int(600 * height_ratio))
         self.central_widget = QWidget(MainWhatsapp)
         self.central_widget.setObjectName(u"central_widget")
 
         self.contacts = QListWidget(self.central_widget)
         self.contacts.setObjectName(u"contacts")
-        self.contacts.setGeometry(QRect(10, 40, 221, 531))
+        self.contacts.setGeometry(QRect(int(10 * width_ratio), int(40 * height_ratio), int(221 * width_ratio), int(531 * height_ratio)))
 
         self.message_list = QListWidget(self.central_widget)
         self.message_list.setObjectName(u"message_list")
-        self.message_list.setGeometry(QRect(230, 10, 551, 501))
+        self.message_list.setGeometry(QRect(int(230 * width_ratio), int(10 * height_ratio), int(551 * width_ratio), int(501 * height_ratio)))
 
         self.textEdit = QTextEdit(self.central_widget)
         self.textEdit.setObjectName(u"textEdit")
-        self.textEdit.setGeometry(QRect(230, 510, 481, 61))
-        font = QFont()
-        font.setFamily(u"Yu Gothic UI")
-        font.setPointSize(14)
-        self.textEdit.setFont(font)
-        self.textEdit.setLineWidth(1)
+        self.textEdit.setGeometry(QRect(int(230 * width_ratio), int(510 * height_ratio), int(481 * width_ratio), int(61 * height_ratio)))
 
         self.sendButton = QPushButton(self.central_widget)
         self.sendButton.setObjectName(u"sendButton")
-        self.sendButton.setGeometry(QRect(710, 530, 71, 41))
-        font1 = QFont()
-        font1.setFamily(u"Yu Gothic UI")
-        font1.setPointSize(12)
-        font1.setItalic(False)
-        self.sendButton.setFont(font1)
+        self.sendButton.setGeometry(QRect(int(710 * width_ratio), int(530 * height_ratio), int(71 * width_ratio), int(41 * height_ratio)))
 
         self.updateContacts = QPushButton(self.central_widget)
         self.updateContacts.setObjectName(u"updateContacts")
-        self.updateContacts.setGeometry(QRect(10, 10, 221, 31))
+        self.updateContacts.setGeometry(QRect(int(10 * width_ratio), int(10 * height_ratio), int(221 * width_ratio), int(31 * height_ratio)))
 
         self.currentContact = QtWidgets.QLabel(self.central_widget)
-        self.currentContact.setGeometry(QtCore.QRect(210, 0, 591, 61))
+        self.currentContact.setGeometry(QtCore.QRect(int(210 * width_ratio), 0, int(591 * width_ratio), int(61 * height_ratio)))
         self.currentContact.setObjectName("currentContact")
 
         self.message_selection = QtWidgets.QComboBox(self.central_widget)
@@ -380,8 +159,10 @@ class Ui_MainWhatsapp(object):
         self.message_selection.addItem("")
         self.message_selection.addItem("")
         self.message_selection.setObjectName(u"message_selection")
-        self.message_selection.setGeometry(QRect(710, 510, 71, 21))
+        self.message_selection.setGeometry(QRect(int(710 * width_ratio), int(510 * height_ratio), int(71 * width_ratio), int(21 * height_ratio)))
         self.message_selection.setEditable(False)
+
+        MainWhatsapp.setCentralWidget(self.central_widget)
 
         MainWhatsapp.setCentralWidget(self.central_widget)
         self.statusbar = QStatusBar(MainWhatsapp)
