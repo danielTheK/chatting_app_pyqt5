@@ -1,13 +1,18 @@
 import socket
+
+from PyQt5.QtCore import QRect, QMetaObject, QCoreApplication
 from PyQt5.QtGui import QFont
 from RegisterWindow import Ui_RegisterWindow
 from WhatsappMain import Ui_MainWhatsapp
 import sys
-from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QMessageBox, QPushButton, QStatusBar, QLineEdit, QLabel, QWidget
 from PyQt5.QtGui import QFont, QMouseEvent
 import threading
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets, Qt
 import json
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 8865
@@ -26,12 +31,11 @@ class UiMainWindow(object):
     def __init__(self):
         self.main_window = None
         self.central_widget = None
-        self.send = None
-        self.label = None
-        self.label_2 = None
-        self.label_3 = None
-        self.password_text = None
-        self.name_text = None
+        self.username_label = None
+        self.password_label = None
+        self.username_line_edit = None
+        self.password_line_edit = None
+        self.login_button = None
         self.register_button = None
         self.menu_bar = None
         self.statusbar = None
@@ -40,55 +44,73 @@ class UiMainWindow(object):
         self.ui = None
 
     def setupUi(self, main_window):
-        self.main_window = main_window
-        main_window.setObjectName("main_window")
-        main_window.resize(319, 204)
-        self.central_widget = QtWidgets.QWidget(main_window)
-        self.central_widget.setObjectName("central_widget")
-        self.label = QtWidgets.QLabel(self.central_widget)
-        self.label.setGeometry(QtCore.QRect(80, 30, 161, 31))
-        self.label.setObjectName("label")
-        self.name_text = QtWidgets.QLineEdit(self.central_widget)
-        self.name_text.setGeometry(QtCore.QRect(100, 60, 111, 21))
-        self.name_text.setObjectName("name_text")
-        self.password_text = QtWidgets.QLineEdit(self.central_widget)
-        self.password_text.setGeometry(QtCore.QRect(100, 80, 111, 21))
-        self.password_text.setObjectName("password_text")
-        self.label_2 = QtWidgets.QLabel(self.central_widget)
-        self.label_2.setGeometry(QtCore.QRect(60, 60, 31, 21))
-        self.label_2.setObjectName("label_2")
-        self.label_3 = QtWidgets.QLabel(self.central_widget)
-        self.label_3.setGeometry(QtCore.QRect(40, 80, 61, 21))
-        self.label_3.setObjectName("label_3")
-        self.send = QtWidgets.QPushButton(self.central_widget)
-        self.send.setGeometry(QtCore.QRect(100, 100, 111, 21))
-        self.send.setObjectName("send")
-        self.register_button = QtWidgets.QPushButton(self.central_widget)
-        self.register_button.setGeometry(QtCore.QRect(110, 120, 91, 41))
-        self.register_button.setObjectName("registerButton")
-        self.register_button.setText("Register")
-        self.register_button.setFont(QFont('Arial', 16))
+        if not main_window.objectName():
+            main_window.setObjectName(u"main_window")
+        main_window.resize(473, 370)
+        self.central_widget = QWidget(main_window)
+        self.central_widget.setObjectName(u"central_widget")
+        self.username_line_edit = QLineEdit(self.central_widget)
+        self.username_line_edit.setObjectName(u"username_line_edit")
+        self.username_line_edit.setGeometry(QRect(90, 70, 291, 31))
+        font = QFont()
+        font.setPointSize(12)
+        self.username_line_edit.setFont(font)
+        self.username_line_edit.setAlignment(Qt.AlignCenter)
+        self.password_line_edit = QLineEdit(self.central_widget)
+        self.password_line_edit.setObjectName(u"password_line_edit")
+        self.password_line_edit.setGeometry(QRect(90, 150, 291, 31))
+        self.password_line_edit.setFont(font)
+        self.password_line_edit.setAlignment(Qt.AlignCenter)
+        self.username_label = QLabel(self.central_widget)
+        self.username_label.setObjectName(u"username_label")
+        self.username_label.setGeometry(QRect(90, 40, 281, 31))
+        font1 = QFont()
+        font1.setPointSize(12)
+        font1.setBold(True)
+        font1.setItalic(False)
+        font1.setWeight(75)
+        self.username_label.setFont(font1)
+        self.username_label.setAlignment(Qt.AlignCenter)
+        self.password_label = QLabel(self.central_widget)
+        self.password_label.setObjectName(u"password_label")
+        self.password_label.setGeometry(QRect(90, 120, 281, 31))
+        font2 = QFont()
+        font2.setPointSize(12)
+        font2.setBold(True)
+        font2.setWeight(75)
+        font2.setStrikeOut(False)
+        self.password_label.setFont(font2)
+        self.password_label.setAlignment(Qt.AlignCenter)
+        self.login_button = QPushButton(self.central_widget)
+        self.login_button.setObjectName(u"login_button")
+        self.login_button.setGeometry(QRect(140, 220, 191, 41))
+        font3 = QFont()
+        font3.setPointSize(12)
+        font3.setBold(False)
+        font3.setWeight(50)
+        self.login_button.setFont(font3)
+        self.register_button = QPushButton(self.central_widget)
+        self.register_button.setObjectName(u"register_button")
+        self.register_button.setGeometry(QRect(160, 270, 151, 41))
+        self.register_button.setFont(font3)
         main_window.setCentralWidget(self.central_widget)
-        self.menu_bar = QtWidgets.QMenuBar(main_window)
-        self.menu_bar.setGeometry(QtCore.QRect(0, 0, 319, 22))
-        self.menu_bar.setObjectName("menubar")
-        main_window.setMenuBar(self.menu_bar)
-        self.statusbar = QtWidgets.QStatusBar(main_window)
-        self.statusbar.setObjectName("statusbar")
+        self.statusbar = QStatusBar(main_window)
+        self.statusbar.setObjectName(u"statusbar")
         main_window.setStatusBar(self.statusbar)
 
         self.translate_ui(main_window)
-        QtCore.QMetaObject.connectSlotsByName(main_window)
+
+        QMetaObject.connectSlotsByName(main_window)
 
     def translate_ui(self, main_window):
         _translate = QtCore.QCoreApplication.translate
         main_window.setWindowTitle(_translate("main_window", "main_window"))
-        self.send.setText(_translate("main_window", "send"))
-        self.label.setText(_translate("main_window", "Enter you name and password"))
-        self.label_2.setText(_translate("main_window", "name:"))
-        self.label_3.setText(_translate("main_window", "password:"))
+        self.username_label.setText(QCoreApplication.translate("MainWindow", u"Username", None))
+        self.password_label.setText(QCoreApplication.translate("MainWindow", u"Password", None))
+        self.login_button.setText(QCoreApplication.translate("MainWindow", u"Login", None))
+        self.register_button.setText(QCoreApplication.translate("MainWindow", u"Register", None))
 
-        self.send.clicked.connect(self.send_function)
+        self.login_button.clicked.connect(self.send_function)
         self.register_button.clicked.connect(lambda: self.register("Yes"))
 
         client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -97,17 +119,16 @@ class UiMainWindow(object):
         self.client_socket = client_sock
 
     def send_function(self):
-        self.client_socket.sendall(f"1@@{self.name_text.text()},{self.password_text.text()}".encode())
+        self.client_socket.sendall(f"1@@{self.username_line_edit.text()},{self.password_line_edit.text()}".encode())
         return_code = self.client_socket.recv(1024).decode()
         print(return_code)
         if return_code == "1":
             # run main whatsapp
             self.window = QtWidgets.QMainWindow()
             ui = Ui_MainWhatsapp()
-            ui.setupUi(self.window, self.name_text.text(), self.client_socket)
-            # MainWindow.show()
+            ui.setupUi(self.window, self.username_line_edit.text(), self.client_socket)
+            # main_window.show()
             self.window.show()
-            self.main_window.close()
 
         else:
             msg = QMessageBox()
@@ -133,10 +154,10 @@ class UiMainWindow(object):
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
-    MainWindow = QtWidgets.QMainWindow()
+    main_window = QtWidgets.QMainWindow()
     ui = UiMainWindow()
-    ui.setupUi(MainWindow)
-    MainWindow.show()
+    ui.setupUi(main_window)
+    main_window.show()
     app.exec_()
 
 
