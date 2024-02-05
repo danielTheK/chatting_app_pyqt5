@@ -1,14 +1,31 @@
+import pickle
 import socket
 import threading
 import json
 import hashlib
+from typing import Any, Dict
 
 NUM_OF_CLIENTS = 1
 LISTEN_PORT = 8865
 
+USERS_PATH = 'users.pickle'
 
-HISTORY = {}
-USERS = {"daniel": hashlib.sha256("12345".encode()).hexdigest(), "yossi": hashlib.sha256("1".encode()).hexdigest()}
+
+def get_users():
+    try:
+        with open(USERS_PATH, 'rb') as f:
+            return pickle.load(f)
+    except EOFError:
+        return {}
+
+
+def update_users(new_users):
+    with open(USERS_PATH, 'wb') as f:
+        pickle.dump(new_users, f)
+
+
+users = get_users()
+history = {}
 
 
 class User:
@@ -24,7 +41,7 @@ class User:
             if self.client_msg[0] == "1":
                 name, password = self.client_msg[3:].split(",")
                 hashed_password = hashlib.sha256(password.encode()).hexdigest()
-                if name in USERS and USERS[name] == hashed_password:
+                if name in users and users[name] == hashed_password:
                     self.client_soc.sendall("1".encode())
                     is_correct = True
                 else:
@@ -32,19 +49,20 @@ class User:
             elif self.client_msg[0] == "2":
                 name, password = self.client_msg[3:].split(",")
                 hashed_password = hashlib.sha256(password.encode()).hexdigest()
-                if name in USERS:
+                if name in users:
                     self.client_soc.sendall("0".encode())
                 else:
                     self.client_soc.sendall("1".encode())
-                    USERS[name] = hashed_password
+                    users[name] = hashed_password
+                    update_users(users)
 
         self.__class__.instances.append(self)
         self.name = name
         self.client_soc.recv(1024)
-        if self.name in HISTORY:
-            self.client_soc.sendall(json.dumps(HISTORY[self.name]).encode())
+        if self.name in history:
+            self.client_soc.sendall(json.dumps(history[self.name]).encode())
         else:
-            HISTORY[self.name] = {}
+            history[self.name] = {}
             self.client_soc.sendall("$$$".encode())
 
         try:
@@ -54,11 +72,11 @@ class User:
                     self.sent_to, self.client_msg = self.client_msg.split("@")
                     self.send()
                 elif self.client_msg == "121212":
-                    contacts = "$$" + ",".join([a for a in USERS if a != self.name])
+                    contacts = "$$" + ",".join([a for a in users if a != self.name])
                     self.client_soc.sendall(contacts.encode())
         except ConnectionResetError:
             print(f"The user {self.name} has disconnected")
-            print(HISTORY)
+            print(history)
             self.__class__.instances.remove(self)
 
     def send(self):
@@ -66,24 +84,23 @@ class User:
             if self.sent_to == instance.name:
                 instance.client_soc.sendall("{}@{}\n".format(self.name, self.client_msg).encode())
 
-        if self.sent_to in HISTORY[self.name]:
-            HISTORY[self.name][self.sent_to].append("{}@{}\n".format(self.name, self.client_msg))
+        if self.sent_to in history[self.name]:
+            history[self.name][self.sent_to].append("{}@{}\n".format(self.name, self.client_msg))
         else:
-            HISTORY[self.name][self.sent_to] = [("{}@{}\n".format(self.name, self.client_msg))]
+            history[self.name][self.sent_to] = [("{}@{}\n".format(self.name, self.client_msg))]
 
-        if self.sent_to in HISTORY:
-            if self.name in HISTORY[self.sent_to]:
-                HISTORY[self.sent_to][self.name].append("{}@{}\n".format(self.name, self.client_msg))
+        if self.sent_to in history:
+            if self.name in history[self.sent_to]:
+                history[self.sent_to][self.name].append("{}@{}\n".format(self.name, self.client_msg))
             else:
-                HISTORY[self.sent_to][self.name] = [("{}@{}\n".format(self.name, self.client_msg))]
+                history[self.sent_to][self.name] = [("{}@{}\n".format(self.name, self.client_msg))]
         else:
-            HISTORY[self.sent_to] = {}
-            HISTORY[self.sent_to][self.name] = [("{}@{}\n".format(self.name, self.client_msg))]
-        print(f"{self.name} history is {HISTORY[self.name]}")
+            history[self.sent_to] = {}
+            history[self.sent_to][self.name] = [("{}@{}\n".format(self.name, self.client_msg))]
+        print(f"{self.name} history is {history[self.name]}")
 
 
 def main():
-    # Create a TCP/IP socket
     listening_soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_address = ('', LISTEN_PORT)
     listening_soc.bind(server_address)

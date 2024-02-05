@@ -10,7 +10,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import json
 
 SERVER_IP = "127.0.0.1"
-SERVER_PORT = 1
+SERVER_PORT = 8865
 USERNAME = ""
 sent_to = ""
 
