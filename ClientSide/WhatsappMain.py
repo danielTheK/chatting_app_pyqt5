@@ -27,7 +27,7 @@ class FileWidget(QtWidgets.QWidget):
         self.filename_label = QLabel(f"File: {filename}")
         self.filesize_label = QLabel(f"Size: {float(filesize):.2f} MB")
         self.download_button = QPushButton("Download")
-
+        self.download_button.setIcon(QIcon("images/download_symbol.jpg"))
         self.layout = QHBoxLayout(self)
         self.layout.addWidget(self.filename_label)
         self.layout.addWidget(self.filesize_label)
@@ -96,8 +96,8 @@ class MessageWidget(QtWidgets.QWidget):
         self.reply_button.setVisible(False)
         self.delete_button.setVisible(False)
 
-
-size = QtWidgets.QApplication(sys.argv).primaryScreen().availableGeometry()
+app = QtWidgets.QApplication(sys.argv)
+size = app.primaryScreen().availableGeometry()
 width, height = size.width(), size.height()
 print(f"{height = }, {width = }")
 height_ratio = height / 1080
@@ -176,7 +176,7 @@ class Ui_MainWhatsapp(object):
         if "$$$" not in history:
             global chats
             chats = json.loads(history)
-            print(f'chats={chats}')
+            print(f'{chats = }')
 
     def translate_ui(self, MainWhatsapp):
         self.run_thread_receiving_packets()  # starting the thread for receiving packets
@@ -244,6 +244,7 @@ class Ui_MainWhatsapp(object):
         self.thread.start()
         self.thread.normal_message.connect(self.addMessage)
         self.thread.contacts_message.connect(self.update_contacts)
+        self.thread.notify_message.connect(self.add_notifies)
 
     def sendUpdateContact(self):
         self.client_sock.sendall("121212".encode())
@@ -297,6 +298,7 @@ class Ui_MainWhatsapp(object):
         message_widget = FileWidget(file_name, size)
         message_item = QtWidgets.QListWidgetItem(self.message_list)
         message_item.setSizeHint(message_widget.sizeHint())
+        message_item.setBackground(QColor(200, 200, 200)) # thats makes the background gray
         """if name == self.name:
             message_item.setBackground(QColor(20, 255, 20))
         else:
@@ -314,6 +316,7 @@ class Ui_MainWhatsapp(object):
 
 
 class receiving_packets(QThread):
+    notify_message = pyqtSignal(str, str)
     normal_message = pyqtSignal(str, str)
     contacts_message = pyqtSignal(str)
 
@@ -326,14 +329,23 @@ class receiving_packets(QThread):
             print("receiving_packets is running")
             message = self.obj.client_sock.recv(1024).decode()
             print(f"{message = }")
+            if message[:3] == "8$$":  # protocal: 8$$sender@file_name@file_size
+                print(message[3:])
+                name, file_name, file_size = message[3:].split("@")
+                self.obj.addIcon(name)
+                chats[name].append(message)
+                if name == self.obj.currentContact.text():
+                    self.notify_message.emit(file_name, file_size)
+                continue
             if "$$" == str(message[0:2]):
                 self.contacts_message.emit(message[2:])
+                continue
             if "@" in message:
                 name, content = message.split("@")
                 content = content[:-1]
                 self.obj.addIcon(name)
-
                 chats[name].append(message)
                 if name == self.obj.currentContact.text():
                     print(f"{content = }")
                     self.normal_message.emit(name, content)
+                continue
