@@ -217,12 +217,13 @@ class Ui_MainWhatsapp(object):
 
     def sendMessage(self):
         text = self.textEdit.toPlainText()
-        chats[self.currentContact.text()].append(f"{self.name}@{text}")
+        if text != "":
+            chats[self.currentContact.text()].append(f"{self.name}@{text}")
 
-        self.addMessage(self.name, text)
+            self.addMessage(self.name, text)
 
-        text = f"{self.currentContact.text()}@{text}"
-        self.client_sock.sendall(text.encode())
+            text = f"{self.currentContact.text()}@{text}"
+            self.client_sock.sendall(text.encode())
 
     def change_contacts_order(self, name):
         """for i in range(self.contacts.__len__()):
@@ -304,6 +305,7 @@ class Ui_MainWhatsapp(object):
                 f"7$${self.currentContact.text()}@{file_path.split('/')[-1]}@{str(len(file_data) / 1048576)}@".encode() + file_data + b"$$END$$")
             # protocol: 7$$sent_to@file_name@file_size@file_data$$END$$
             self.add_notifies(file_path.split("/")[-1], len(file_data) / 1048576)
+            chats[self.currentContact.text()].append(f"8$${self.currentContact.text()}@{file_path.split('/')[-1]}@{str(len(file_data) / 1048576)}")
 
     def add_notifies(self, file_name, size):
         message_widget = FileWidget(file_name, size)

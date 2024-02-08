@@ -2,7 +2,8 @@
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <excludeFolder url="file://$MODULE_DIR$/hacks" />
+      <sourceFolder url="file://$MODULE_DIR$/hacks/Include" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hacks/Lib" isTestSource="false" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
