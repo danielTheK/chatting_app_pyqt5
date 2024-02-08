@@ -15,8 +15,6 @@ SERVER_PORT = 8865
 USERNAME = ""
 sent_to = ""
 
-CHATS = {}
-
 
 class UiRegisterWindow(object):
     def __init__(self):
@@ -130,11 +128,6 @@ class UiRegisterWindow(object):
             msg.setText("A user with the same name already exists")
             msg.setIcon(QMessageBox.Critical)
             msg.exec_()
-
-
-def add_to_CHATS(name):
-    if name not in CHATS:
-        CHATS[name] = []
 
 
 class UiMainWindow(object):

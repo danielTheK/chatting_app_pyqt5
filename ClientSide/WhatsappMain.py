@@ -5,7 +5,6 @@ import json
 import sys
 import multiprocessing
 
-
 # pylint: disable=no-name-in-module
 from PyQt5.Qt import Qt
 from PyQt5.QtCore import QEvent, QThread, pyqtSlot, QTimer, pyqtSignal
@@ -27,7 +26,7 @@ class FileWidget(QtWidgets.QWidget):
         self.filename_label = QLabel(f"File: {filename}")
         self.filesize_label = QLabel(f"Size: {float(filesize):.2f} MB")
         self.download_button = QPushButton("Download")
-        self.download_button.setIcon(QIcon("images/download_symbol.jpg"))
+        self.download_button.setIcon(QIcon("images/download_icon.jpg"))
         self.layout = QHBoxLayout(self)
         self.layout.addWidget(self.filename_label)
         self.layout.addWidget(self.filesize_label)
@@ -96,12 +95,16 @@ class MessageWidget(QtWidgets.QWidget):
         self.reply_button.setVisible(False)
         self.delete_button.setVisible(False)
 
+
 app = QtWidgets.QApplication(sys.argv)
 size = app.primaryScreen().availableGeometry()
 width, height = size.width(), size.height()
 print(f"{height = }, {width = }")
 height_ratio = height / 1080
 width_ratio = width / 1920
+# trying to make it better
+height_ratio *= 1.55
+width_ratio *= 1.75
 
 
 class Ui_MainWhatsapp(object):
@@ -132,26 +135,33 @@ class Ui_MainWhatsapp(object):
 
         self.contacts = QListWidget(self.central_widget)
         self.contacts.setObjectName(u"contacts")
-        self.contacts.setGeometry(QRect(int(10 * width_ratio), int(40 * height_ratio), int(221 * width_ratio), int(531 * height_ratio)))
+        self.contacts.setGeometry(
+            QRect(int(10 * width_ratio), int(40 * height_ratio), int(221 * width_ratio), int(531 * height_ratio)))
 
         self.message_list = QListWidget(self.central_widget)
         self.message_list.setObjectName(u"message_list")
-        self.message_list.setGeometry(QRect(int(230 * width_ratio), int(10 * height_ratio), int(551 * width_ratio), int(501 * height_ratio)))
+        self.message_list.setGeometry(
+            QRect(int(230 * width_ratio), int(10 * height_ratio), int(551 * width_ratio), int(501 * height_ratio)))
 
         self.textEdit = QTextEdit(self.central_widget)
         self.textEdit.setObjectName(u"textEdit")
-        self.textEdit.setGeometry(QRect(int(230 * width_ratio), int(510 * height_ratio), int(481 * width_ratio), int(61 * height_ratio)))
+        self.textEdit.setGeometry(
+            QRect(int(230 * width_ratio), int(510 * height_ratio), int(481 * width_ratio), int(61 * height_ratio)))
 
         self.sendButton = QPushButton(self.central_widget)
         self.sendButton.setObjectName(u"sendButton")
         self.sendButton.setGeometry(QRect(int(710 * width_ratio), int(530 * height_ratio), int(71 * width_ratio), int(41 * height_ratio)))
+        self.sendButton.setIcon(QIcon("images/send_icon.png"))
+        self.sendButton.setIconSize(QSize(self.sendButton.width(), self.sendButton.height())) # size dont fit, button size is 62 30, need to find better image or change the size or the button
 
         self.updateContacts = QPushButton(self.central_widget)
         self.updateContacts.setObjectName(u"updateContacts")
-        self.updateContacts.setGeometry(QRect(int(10 * width_ratio), int(10 * height_ratio), int(221 * width_ratio), int(31 * height_ratio)))
+        self.updateContacts.setGeometry(
+            QRect(int(10 * width_ratio), int(10 * height_ratio), int(221 * width_ratio), int(31 * height_ratio)))
 
         self.currentContact = QtWidgets.QLabel(self.central_widget)
-        self.currentContact.setGeometry(QtCore.QRect(int(210 * width_ratio), 0, int(591 * width_ratio), int(61 * height_ratio)))
+        self.currentContact.setGeometry(
+            QtCore.QRect(int(210 * width_ratio), 0, int(591 * width_ratio), int(61 * height_ratio)))
         self.currentContact.setObjectName("currentContact")
 
         self.message_selection = QtWidgets.QComboBox(self.central_widget)
@@ -159,7 +169,8 @@ class Ui_MainWhatsapp(object):
         self.message_selection.addItem("")
         self.message_selection.addItem("")
         self.message_selection.setObjectName(u"message_selection")
-        self.message_selection.setGeometry(QRect(int(710 * width_ratio), int(510 * height_ratio), int(71 * width_ratio), int(21 * height_ratio)))
+        self.message_selection.setGeometry(
+            QRect(int(710 * width_ratio), int(510 * height_ratio), int(71 * width_ratio), int(21 * height_ratio)))
         self.message_selection.setEditable(False)
 
         MainWhatsapp.setCentralWidget(self.central_widget)
@@ -220,7 +231,7 @@ class Ui_MainWhatsapp(object):
 
     def addMessage(self, name, message):
         message_widget = MessageWidget(f"{name}:", message)
-        self.returnWidgetsToNormal()
+        #self.returnWidgetsToNormal() no need for that for now, only when and if we will add buttons to messeges
         message_item = QtWidgets.QListWidgetItem(self.message_list)
         message_item.setSizeHint(message_widget.sizeHint() + message_widget.reply_button.sizeHint())
         if name == self.name:
@@ -298,7 +309,7 @@ class Ui_MainWhatsapp(object):
         message_widget = FileWidget(file_name, size)
         message_item = QtWidgets.QListWidgetItem(self.message_list)
         message_item.setSizeHint(message_widget.sizeHint())
-        message_item.setBackground(QColor(200, 200, 200)) # thats makes the background gray
+        message_item.setBackground(QColor(200, 200, 200))  # thats makes the background gray
         """if name == self.name:
             message_item.setBackground(QColor(20, 255, 20))
         else:
@@ -308,8 +319,7 @@ class Ui_MainWhatsapp(object):
         self.message_list.setItemWidget(message_item, message_widget)
 
     def addIcon(self, name):
-        icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("../../Downloads/Exclamation mark.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon = QtGui.QIcon("images/Exclamation_mark.jpg")
         for i in range(self.contacts.count()):
             if self.contacts.item(i).text() == name and name != self.currentContact.text():
                 self.contacts.item(i).setIcon(icon)
