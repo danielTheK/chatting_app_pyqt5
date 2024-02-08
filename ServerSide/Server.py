@@ -63,13 +63,17 @@ def update_files(new_files):
     with open(FILES_PATH, 'wb') as f:
         pickle.dump(new_files, f)
 
-
+def reset_all_history(): # debug purposes
+    update_file_id(0)
+    update_history({})
+    update_users({})
+#reset_all_history()
 users = get_users()
 history = get_history()
 file_id = get_file_id()
 files = get_files()
 
-
+connected_users = []# no need to save it from run to run
 class User:
     instances = []
 
@@ -84,7 +88,7 @@ class User:
             if self.client_msg[0] == "1":
                 name, password = self.client_msg[3:].split(",")
                 hashed_password = hashlib.sha256(password.encode()).hexdigest()
-                if name in users and users[name] == hashed_password:
+                if name in users and users[name] == hashed_password and name not in connected_users:
                     self.client_soc.sendall("1".encode())
                     is_correct = True
                 else:
@@ -101,6 +105,7 @@ class User:
 
         self.__class__.instances.append(self)
         self.name = name
+        connected_users.append(name)
         self.client_soc.recv(1024)
         if self.name in history:
             print(f'history[self.name]={history[self.name]}')
@@ -121,6 +126,7 @@ class User:
                     with open(str(file_id), "wb") as f:
                         f.write(file_data)
                     file_id += 1
+                    update_file_id(file_id)
                     size = size.decode()
                     self.send_file_notification(file_name, size)
                 else:
@@ -132,6 +138,7 @@ class User:
                         contacts = "$$" + ",".join([a for a in users if a != self.name])
                         self.client_soc.sendall(contacts.encode())
         except ConnectionResetError:
+            connected_users.remove(self.name)
             print(f"The user {self.name} has disconnected")
             print(history)
             self.__class__.instances.remove(self)
