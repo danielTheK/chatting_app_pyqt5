@@ -67,7 +67,8 @@ def reset_all_history(): # debug purposes
     update_file_id(0)
     update_history({})
     update_users({})
-#reset_all_history()
+    update_files({})
+reset_all_history()
 users = get_users()
 history = get_history()
 file_id = get_file_id()
@@ -123,12 +124,20 @@ class User:
                     while file_data[-7:] != b"$$END$$":
                         file_data += self.client_soc.recv(10024)
                     file_data = file_data[:-7]
+                    #self.client_soc.sendall(f"11$${file_id}".encode()) #so the sender would also have the id in cace he want to download from the server either
                     with open(str(file_id), "wb") as f:
                         f.write(file_data)
+                    files[str(file_id)] = file_name
+                    update_files(files)
                     file_id += 1
                     update_file_id(file_id)
                     size = size.decode()
                     self.send_file_notification(file_name, size)
+                elif self.client_msg[:3] == b"6$$": #requesting file
+                    file_id = self.client_msg[3:].decode()
+                    with open(str(file_id), "rb") as f:
+                        file_data = f.read()
+                    self.client_soc.sendall(f"10$${files[file_id]}$$".encode() + file_data + b"$$END$$") # 10$${file_name}$${file}$$END$$
                 else:
                     self.client_msg = self.client_msg.decode()
                     if "@" in self.client_msg:
@@ -164,24 +173,24 @@ class User:
         update_history(history)
         print(f"{self.name} history is {history[self.name]}")
 
-    def send_file_notification(self, file_name, file_size):  # protocol: 8$$sender@file_name@file_size
+    def send_file_notification(self, file_name, file_size):  # protocol: 8$$sender@file_name@file_size@file_id
         for instance in User.instances:
             if self.sent_to == instance.name:
-                instance.client_soc.sendall(f"8$${self.name}@{file_name}@{file_size}".encode())
+                instance.client_soc.sendall(f"8$${self.name}@{file_name}@{file_size}@{file_id-1}".encode())
 
         if self.sent_to in history[self.name]:
-            history[self.name][self.sent_to].append(f"8$${self.name}@{file_name}@{file_size}")
+            history[self.name][self.sent_to].append(f"8$${self.name}@{file_name}@{file_size}@{file_id-1}")
         else:
-            history[self.name][self.sent_to] = [f"8$${self.name}@{file_name}@{file_size}"]
+            history[self.name][self.sent_to] = [f"8$${self.name}@{file_name}@{file_size}@{file_id-1}"]
 
         if self.sent_to in history:
             if self.name in history[self.sent_to]:
-                history[self.sent_to][self.name].append(f"8$${self.name}@{file_name}@{file_size}")
+                history[self.sent_to][self.name].append(f"8$${self.name}@{file_name}@{file_size}@{file_id-1}")
             else:
-                history[self.sent_to][self.name] = [f"8$${self.name}@{file_name}@{file_size}"]
+                history[self.sent_to][self.name] = [f"8$${self.name}@{file_name}@{file_size}@{file_id-1}"]
         else:
             history[self.sent_to] = {}
-            history[self.sent_to][self.name] = [f"8$${self.name}@{file_name}@{file_size}"]
+            history[self.sent_to][self.name] = [f"8$${self.name}@{file_name}@{file_size}@{file_id-1}"]
         update_history(history)
         print(f"{self.name} history is {history[self.name]}")
 

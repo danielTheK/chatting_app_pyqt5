@@ -20,7 +20,9 @@ chats = {}
 
 
 class FileWidget(QtWidgets.QWidget):
-    def __init__(self, filename, filesize):
+    def __init__(self, filename, filesize,id,sock):
+        self.id = id
+        self.sock = sock
         super(FileWidget, self).__init__()
         self.file_name = filename
         self.filename_label = QLabel(f"File: {filename}")
@@ -35,7 +37,9 @@ class FileWidget(QtWidgets.QWidget):
         self.download_button.clicked.connect(self.start_download)
 
     def start_download(self):
-        print(f"The file {self.file_name} is downloading!")
+        if self.id != -99:
+            self.sock.sendall(f"6$${self.id}".encode())
+        print(self.id)
 
 
 class MessageWidget(QtWidgets.QWidget):
@@ -76,7 +80,6 @@ class MessageWidget(QtWidgets.QWidget):
         reply_dialog.exec_()
 
     def replyClicked(self, reply_text, reply_dialog):
-        print(f"Reply: {reply_text}")
         reply_dialog.accept()
 
     def showDeleteConfirmation(self):
@@ -85,7 +88,7 @@ class MessageWidget(QtWidgets.QWidget):
                                                QtWidgets.QMessageBox.No)
 
         if reply == QtWidgets.QMessageBox.Yes:
-            print(f"Deleted message: {self.message_label.text()}")
+            pass
 
     def showOptions(self):
         self.reply_button.setVisible(True)
@@ -187,7 +190,6 @@ class Ui_MainWhatsapp(object):
         if "$$$" not in history:
             global chats
             chats = json.loads(history)
-            print(f'{chats = }')
 
     def translate_ui(self, MainWhatsapp):
         self.run_thread_receiving_packets()  # starting the thread for receiving packets
@@ -262,7 +264,6 @@ class Ui_MainWhatsapp(object):
         self.client_sock.sendall("121212".encode())
 
     def update_contacts(self, contacts):
-        print(self.contacts.selectedItems())
 
         try:
             self.contacts.clear()
@@ -273,7 +274,6 @@ class Ui_MainWhatsapp(object):
             item = QtWidgets.QListWidgetItem()
             item.setText(i)
             self.contacts.addItem(item)
-            print(i)
             self.add_to_CHATS(i)
 
     def add_to_CHATS(self, name):
@@ -307,8 +307,8 @@ class Ui_MainWhatsapp(object):
             self.add_notifies(file_path.split("/")[-1], len(file_data) / 1048576)
             chats[self.currentContact.text()].append(f"8$${self.currentContact.text()}@{file_path.split('/')[-1]}@{str(len(file_data) / 1048576)}")
 
-    def add_notifies(self, file_name, size):
-        message_widget = FileWidget(file_name, size)
+    def add_notifies(self, file_name, size, file_id=-99):
+        message_widget = FileWidget(file_name, size,file_id,self.client_sock)
         message_item = QtWidgets.QListWidgetItem(self.message_list)
         message_item.setSizeHint(message_widget.sizeHint())
         message_item.setBackground(QColor(200, 200, 200))  # thats makes the background gray
@@ -328,7 +328,7 @@ class Ui_MainWhatsapp(object):
 
 
 class receiving_packets(QThread):
-    notify_message = pyqtSignal(str, str)
+    notify_message = pyqtSignal(str, str, str)
     normal_message = pyqtSignal(str, str)
     contacts_message = pyqtSignal(str)
 
@@ -339,25 +339,33 @@ class receiving_packets(QThread):
     def run(self):
         while True:
             print("receiving_packets is running")
-            message = self.obj.client_sock.recv(1024).decode()
+            message = self.obj.client_sock.recv(1024)
             print(f"{message = }")
-            if message[:3] == "8$$":  # protocal: 8$$sender@file_name@file_size
-                print(message[3:])
-                name, file_name, file_size = message[3:].split("@")
+            if message[:4] == b"10$$":  # 10$${file_name}$${file}$$END$$
+                file_name = message.split(b"$$")[1].decode()
+                print(f"{file_name} is downloading!!")
+                file_data = message[:(4+len(file_name)+2)] #skipping the name part of massage
+                while file_data[-7:] != b"$$END$$":
+                    file_data += self.obj.client_sock.recv(1024)
+                file_data = file_data[:-7]
+                with open(file_name,"wb") as f:
+                    f.write(file_data)
+                continue
+            if message[:3] == b"8$$":  # protocal: 8$$sender@file_name@file_size@file_id
+                name, file_name, file_size,file_id = message[3:].decode().split("@")
                 self.obj.addIcon(name)
-                chats[name].append(message)
+                chats[name].append(message.decode())
                 if name == self.obj.currentContact.text():
-                    self.notify_message.emit(file_name, file_size)
+                    self.notify_message.emit(file_name, file_size, file_id)
                 continue
-            if "$$" == str(message[0:2]):
-                self.contacts_message.emit(message[2:])
+            if b"$$" == message[0:2]:
+                self.contacts_message.emit(message[2:].decode())
                 continue
-            if "@" in message:
-                name, content = message.split("@")
+            if b"@" in message:
+                name, content = message.decode().split("@")
                 content = content[:-1]
                 self.obj.addIcon(name)
-                chats[name].append(message)
+                chats[name].append(message.decode())
                 if name == self.obj.currentContact.text():
-                    print(f"{content = }")
                     self.normal_message.emit(name, content)
                 continue

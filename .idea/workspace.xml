@@ -36,7 +36,7 @@
       </console-settings>
     </option>
   </component>
-  <component name="RunManager" selected="Python.EntryWindow">
+  <component name="RunManager" selected="Python.main (1)">
     <configuration name="EntryWindow" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="whatsapp_gui" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -144,11 +144,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.EntryWindow" />
         <item itemvalue="Python.main (1)" />
+        <item itemvalue="Python.EntryWindow" />
         <item itemvalue="Python.Server" />
-        <item itemvalue="Python.maina" />
         <item itemvalue="Python.WhatsappMain" />
+        <item itemvalue="Python.maina" />
       </list>
     </recent_temporary>
   </component>
