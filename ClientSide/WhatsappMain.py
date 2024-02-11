@@ -17,7 +17,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 chats = {}
-
+drafts = {}
 
 class FileWidget(QtWidgets.QWidget):
     def __init__(self, filename, filesize,id,sock):
@@ -219,18 +219,14 @@ class Ui_MainWhatsapp(object):
 
     def sendMessage(self):
         text = self.textEdit.toPlainText()
+        self.textEdit.setPlainText("")
         if text != "":
             chats[self.currentContact.text()].append(f"{self.name}@{text}")
-
+            drafts[self.currentContact.text()] = ""
             self.addMessage(self.name, text)
 
             text = f"{self.currentContact.text()}@{text}"
             self.client_sock.sendall(text.encode())
-
-    def change_contacts_order(self, name):
-        """for i in range(self.contacts.__len__()):
-            if self.contacts.item(i).text() =="""
-        pass
 
     def addMessage(self, name, message):
         message_widget = MessageWidget(f"{name}:", message)
@@ -281,15 +277,20 @@ class Ui_MainWhatsapp(object):
             chats[name] = []
 
     def changeCurrentContact(self):
+        if self.textEdit.toPlainText() != "":
+            drafts[self.currentContact.text()] = self.textEdit.toPlainText()
         if len(self.contacts.selectedItems()) != 0:
             name = self.contacts.selectedItems()[0].text()
             self.currentContact.setText(name)
             for i in range(self.contacts.count()):
                 if self.contacts.item(i).text() == name:
                     self.contacts.item(i).setIcon(QtGui.QIcon())
-
+                    break
             self.message_list.clear()
-
+            if name in drafts:
+                self.textEdit.setPlainText(drafts[name])
+            else:
+                self.textEdit.setPlainText("")
             for i in chats[name]:
                 if i[:3] == "8$$":
                     self.add_notifies(i.split("@")[1], i.split("@")[2])
@@ -325,7 +326,7 @@ class Ui_MainWhatsapp(object):
         for i in range(self.contacts.count()):
             if self.contacts.item(i).text() == name and name != self.currentContact.text():
                 self.contacts.item(i).setIcon(icon)
-
+    #you can change the order but it will force the users and change the clicked item to the one that send the massage
 
 class receiving_packets(QThread):
     notify_message = pyqtSignal(str, str, str)

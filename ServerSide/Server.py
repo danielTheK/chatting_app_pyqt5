@@ -68,7 +68,7 @@ def reset_all_history(): # debug purposes
     update_history({})
     update_users({})
     update_files({})
-reset_all_history()
+#reset_all_history()
 users = get_users()
 history = get_history()
 file_id = get_file_id()
@@ -124,7 +124,7 @@ class User:
                     while file_data[-7:] != b"$$END$$":
                         file_data += self.client_soc.recv(10024)
                     file_data = file_data[:-7]
-                    #self.client_soc.sendall(f"11$${file_id}".encode()) #so the sender would also have the id in cace he want to download from the server either
+                    #self.client_soc.sendall(f"11$${file_id}".encode()) # so the sender would also have the id in case he want to download from the server either
                     with open(str(file_id), "wb") as f:
                         f.write(file_data)
                     files[str(file_id)] = file_name
