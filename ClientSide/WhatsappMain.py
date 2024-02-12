@@ -4,7 +4,8 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import json
 import sys
 import multiprocessing
-
+import gzip
+import io
 # pylint: disable=no-name-in-module
 from PyQt5.Qt import Qt
 from PyQt5.QtCore import QEvent, QThread, pyqtSlot, QTimer, pyqtSignal
@@ -98,6 +99,14 @@ class MessageWidget(QtWidgets.QWidget):
         self.reply_button.setVisible(False)
         self.delete_button.setVisible(False)
 
+def get_compressed_file(file_name):
+    with open(file_name, "rb") as f:
+        return gzip.compress(f.read())
+
+def decompress_to_file(compressed_bytes, output_file_path):
+    file_data = gzip.decompress(compressed_bytes)
+    with open(output_file_path, "wb") as f:
+        f.write(file_data)
 
 app = QtWidgets.QApplication(sys.argv)
 size = app.primaryScreen().availableGeometry()
@@ -293,15 +302,14 @@ class Ui_MainWhatsapp(object):
                 self.textEdit.setPlainText("")
             for i in chats[name]:
                 if i[:3] == "8$$":
-                    self.add_notifies(i.split("@")[1], i.split("@")[2])
+                    self.add_notifies(i.split("@")[1], i.split("@")[2],i.split("@")[3])
                     continue
                 self.addMessage(*i.split("@"))
 
     def send_files_images_voice(self):
         file_path, _ = QFileDialog.getOpenFileName()
         if file_path:
-            with open(file_path, "rb") as f:
-                file_data = f.read()
+            file_data = get_compressed_file(file_path) #compress the file before sending it
             self.client_sock.sendall(
                 f"7$${self.currentContact.text()}@{file_path.split('/')[-1]}@{str(len(file_data) / 1048576)}@".encode() + file_data + b"$$END$$")
             # protocol: 7$$sent_to@file_name@file_size@file_data$$END$$
@@ -345,12 +353,15 @@ class receiving_packets(QThread):
             if message[:4] == b"10$$":  # 10$${file_name}$${file}$$END$$
                 file_name = message.split(b"$$")[1].decode()
                 print(f"{file_name} is downloading!!")
-                file_data = message[:(4+len(file_name)+2)] #skipping the name part of massage
+                file_data = message[(4+len(file_name)+2):] #skipping the name part of massage
+                print(message[:(4+len(file_name)+2)])
                 while file_data[-7:] != b"$$END$$":
                     file_data += self.obj.client_sock.recv(1024)
                 file_data = file_data[:-7]
-                with open(file_name,"wb") as f:
-                    f.write(file_data)
+                with open(r"C:\Users\Magshimim\PycharmProjects\whatsapp_gui\ServerSide\0", "rb") as f:
+                    a = f.read()
+                print(file_data==a)
+                decompress_to_file(file_data, file_name)
                 continue
             if message[:3] == b"8$$":  # protocal: 8$$sender@file_name@file_size@file_id
                 name, file_name, file_size,file_id = message[3:].decode().split("@")

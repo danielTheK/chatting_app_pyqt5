@@ -36,7 +36,7 @@
       </console-settings>
     </option>
   </component>
-  <component name="RunManager" selected="Python.main (1)">
+  <component name="RunManager" selected="Python.Server">
     <configuration name="EntryWindow" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="whatsapp_gui" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -145,10 +145,9 @@
     <recent_temporary>
       <list>
         <item itemvalue="Python.main (1)" />
+        <item itemvalue="Python.Server" />
         <item itemvalue="Python.EntryWindow" />
         <item itemvalue="Python.WhatsappMain" />
-        <item itemvalue="Python.Server" />
-        <item itemvalue="Python.maina" />
       </list>
     </recent_temporary>
   </component>
@@ -173,5 +172,21 @@
       </map>
     </option>
     <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/ClientSide/WhatsappMain.py</url>
+          <line>363</line>
+          <option name="timeStamp" value="20" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/ClientSide/WhatsappMain.py</url>
+          <line>362</line>
+          <option name="timeStamp" value="22" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>

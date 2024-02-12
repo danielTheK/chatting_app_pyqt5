@@ -30,7 +30,7 @@ class UiRegisterWindow(object):
         self.central_widget = None
         self.client_sock = None
 
-    def setupUi(self, main_window, client_sock):
+    def setupUi(self, main_window, client_sock,name,password):
         self.client_sock = client_sock
         if not main_window.objectName():
             main_window.setObjectName(u"main_window")
@@ -39,6 +39,8 @@ class UiRegisterWindow(object):
         self.central_widget.setObjectName(u"central_widget")
         self.password_line_edit = QLineEdit(self.central_widget)
         self.password_line_edit.setObjectName(u"password_line_edit")
+        self.password_line_edit.setPlaceholderText("Password...")
+        self.password_line_edit.setText(password)
         self.password_line_edit.setGeometry(QRect(80, 160, 291, 31))
         font = QFont()
         font.setPointSize(12)
@@ -80,6 +82,8 @@ class UiRegisterWindow(object):
         self.username_line_edit.setObjectName(u"username_line_edit")
         self.username_line_edit.setGeometry(QRect(80, 80, 291, 31))
         self.username_line_edit.setFont(font)
+        self.username_line_edit.setPlaceholderText("Username...")
+        self.username_line_edit.setText(name)
         self.username_line_edit.setAlignment(Qt.AlignCenter)
         main_window.setCentralWidget(self.central_widget)
         self.statusbar = QStatusBar(main_window)
@@ -256,7 +260,7 @@ class UiMainWindow(object):
             # run register whatsapp
             self.window = QtWidgets.QMainWindow()
             self.ui = UiRegisterWindow()
-            self.ui.setupUi(self.window, self.client_socket)
+            self.ui.setupUi(self.window, self.client_socket,self.username_line_edit.text(),self.password_line_edit.text())
             self.window.show()
             main_window.close()
 
