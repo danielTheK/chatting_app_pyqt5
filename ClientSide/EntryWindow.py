@@ -42,6 +42,7 @@ class UiRegisterWindow(object):
         self.password_line_edit.setPlaceholderText("Password...")
         self.password_line_edit.setText(password)
         self.password_line_edit.setGeometry(QRect(80, 160, 291, 31))
+        self.password_line_edit.setEchoMode(QtWidgets.QLineEdit.Password)
         font = QFont()
         font.setPointSize(12)
         self.password_line_edit.setFont(font)
@@ -90,6 +91,12 @@ class UiRegisterWindow(object):
         self.statusbar.setObjectName(u"statusbar")
         main_window.setStatusBar(self.statusbar)
 
+        self.show_password_checkBox = QtWidgets.QCheckBox(self.central_widget)
+        self.show_password_checkBox.setGeometry(QtCore.QRect(380, 160, 91, 18))
+        self.show_password_checkBox.setObjectName("show_passwrd_checkBox")
+        main_window.setCentralWidget(self.central_widget)
+        self.show_password_checkBox.stateChanged.connect(self.show_password)
+
         self.translate_ui(main_window)
 
         QMetaObject.connectSlotsByName(main_window)
@@ -132,6 +139,11 @@ class UiRegisterWindow(object):
             msg.setText("A user with the same name already exists")
             msg.setIcon(QMessageBox.Critical)
             msg.exec_()
+    def show_password(self, action):
+        if action:
+            self.password_line_edit.setEchoMode(QLineEdit.EchoMode.Normal)
+        else:
+            self.password_line_edit.setEchoMode(QLineEdit.EchoMode.Password)
 
 
 class UiMainWindow(object):
@@ -168,6 +180,8 @@ class UiMainWindow(object):
         self.password_line_edit.setGeometry(QRect(90, 150, 291, 31))
         self.password_line_edit.setFont(font)
         self.password_line_edit.setAlignment(Qt.AlignCenter)
+        self.password_line_edit.setEchoMode(QtWidgets.QLineEdit.Password)
+
         self.username_label = QLabel(self.central_widget)
         self.username_label.setObjectName(u"username_label")
         self.username_label.setGeometry(QRect(90, 40, 281, 31))
@@ -204,6 +218,12 @@ class UiMainWindow(object):
         self.statusbar = QStatusBar(main_window)
         self.statusbar.setObjectName(u"statusbar")
         main_window.setStatusBar(self.statusbar)
+
+        self.show_password_checkBox = QtWidgets.QCheckBox(self.central_widget)
+        self.show_password_checkBox.setGeometry(QtCore.QRect(380, 160, 91, 18))
+        self.show_password_checkBox.setObjectName("show_passwrd_checkBox")
+        self.show_password_checkBox.stateChanged.connect(self.show_password)
+        main_window.setCentralWidget(self.central_widget)
 
         self.translate_ui(main_window)
 
@@ -263,6 +283,12 @@ class UiMainWindow(object):
             self.ui.setupUi(self.window, self.client_socket,self.username_line_edit.text(),self.password_line_edit.text())
             self.window.show()
             main_window.close()
+
+    def show_password(self, action):
+        if action:
+            self.password_line_edit.setEchoMode(QLineEdit.EchoMode.Normal)
+        else:
+            self.password_line_edit.setEchoMode(QLineEdit.EchoMode.Password)
 
 
 def main():
