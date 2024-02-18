@@ -227,7 +227,7 @@ class Ui_MainWhatsapp(object):
         self.contacts.itemSelectionChanged.connect(self.changeCurrentContact)
 
     def sendMessage(self):
-        text = self.textEdit.toPlainText()
+        text = self.textEdit.toPlainText().strip()
         self.textEdit.setPlainText("")
         if text != "":
             chats[self.currentContact.text()].append(f"{self.name}@{text}")
