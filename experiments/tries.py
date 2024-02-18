@@ -1,8 +1,9 @@
 import sys
 
 from PyQt5 import QtWidgets, QtCore
+from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QProgressBar, QListWidget, QListWidgetItem, \
-    QPushButton, QHBoxLayout, QGridLayout
+    QPushButton, QHBoxLayout, QGridLayout, QDialog
 from playsound import playsound
 import threading
 from mutagen.mp3 import MP3
@@ -58,64 +59,12 @@ class MainWindow(QWidget):
 
 
 if __name__ == "__main__":
-    """app = QApplication(sys.argv)
+    app = QApplication(sys.argv)
 
     main_window = MainWindow()
     main_window.setWindowTitle("Voice Message Player")
     main_window.setGeometry(100, 100, 400, 300)
     main_window.show()
 
-    sys.exit(app.exec_())"""
-    pass
-import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QPushButton, QDialog, QGridLayout
-from PyQt5.QtGui import QFont
-
-class EmojiWindow(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Select Emoji")
-        self.layout = QGridLayout()
-        self.setLayout(self.layout)
-        emojis = ["😀", "😂", "😊", "😎", "😍", "😜", "🤔", "😴"]  # Add more emojis as needed
-        row = 0
-        col = 0
-        for emoji in emojis:
-            button = QPushButton(emoji)
-            button.setFont(QFont("Arial", 20))
-            button.clicked.connect(lambda _, e=emoji: self.select_emoji(e))
-            self.layout.addWidget(button, row, col)
-            col += 1
-            if col > 3:
-                col = 0
-                row += 1
-
-    def select_emoji(self, emoji):
-        if isinstance(self.parent(), LabelWindow):
-            self.parent().set_selected_emoji(emoji)
-        self.close()
-
-class LabelWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Emoji Selector")
-        self.label = QLabel("No Emoji Selected")
-        self.button = QPushButton("Select Emoji")
-        self.button.clicked.connect(self.open_emoji_window)
-        layout = QVBoxLayout()
-        layout.addWidget(self.label)
-        layout.addWidget(self.button)
-        self.setLayout(layout)
-
-    def open_emoji_window(self):
-        emoji_window = EmojiWindow(self)
-        emoji_window.exec_()
-
-    def set_selected_emoji(self, emoji):
-        self.label.setText(emoji)
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    main_window = LabelWindow()
-    main_window.show()
     sys.exit(app.exec_())
+    pass
