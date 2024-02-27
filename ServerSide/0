@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Glitter</title>
+  <base href="/">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="/assets/images/logo-purple.png">
+<link rel="stylesheet" href="styles.8829a89e6d92ec8bbe06.css"></head>
+<body>
+  <app-root></app-root>
+<script type="text/javascript" src="runtime.06daa30a2963fa413676.js"></script><script type="text/javascript" src="polyfills.9d2cdfa1f0de090233d7.js"></script><script type="text/javascript" src="main.2c30908f854771a66a47.js"></script></body>
+</html>

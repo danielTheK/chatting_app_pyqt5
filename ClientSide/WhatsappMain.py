@@ -219,6 +219,7 @@ class Ui_MainWhatsapp(object):
         if "$$$" not in history:
             global chats
             chats = json.loads(history)
+        print(f"{chats = }")
 
     def translate_ui(self, MainWhatsapp):
         self.run_thread_receiving_packets()  # starting the thread for receiving packets

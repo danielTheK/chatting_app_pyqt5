@@ -108,12 +108,12 @@ class User:
         self.name = name
         connected_users.append(name)
         self.client_soc.recv(1024)
-        if self.name in history:
-            print(f'history[self.name]={history[self.name]}')
-            self.client_soc.sendall(json.dumps(history[self.name]).encode())
-        else:
-            history[self.name] = {}
-            self.client_soc.sendall("$$$".encode())
+        user_history = {}
+        for key in history:
+            if self.name in key:
+                user_history[key.replace(self.name, "").replace("@","")] = history[key]
+        self.client_soc.sendall(json.dumps(user_history).encode())
+
 
         try:
             while True:
@@ -157,43 +157,28 @@ class User:
         for instance in User.instances:
             if self.sent_to == instance.name:
                 instance.client_soc.sendall("{}@{}\n".format(self.name, self.client_msg).encode())
-
-        if self.sent_to in history[self.name]:
-            history[self.name][self.sent_to].append("{}@{}\n".format(self.name, self.client_msg))
-        else:
-            history[self.name][self.sent_to] = [("{}@{}\n".format(self.name, self.client_msg))]
-
-        if self.sent_to in history:
-            if self.name in history[self.sent_to]:
-                history[self.sent_to][self.name].append("{}@{}\n".format(self.name, self.client_msg))
-            else:
-                history[self.sent_to][self.name] = [("{}@{}\n".format(self.name, self.client_msg))]
-        else:
-            history[self.sent_to] = {}
-            history[self.sent_to][self.name] = [("{}@{}\n".format(self.name, self.client_msg))]
+        chat_exists = False
+        for history_key in (f"{self.name}@{self.sent_to}",f"{self.sent_to}@{self.name}"):
+            if history_key in history:
+                history[history_key].append("{}@{}\n".format(self.name, self.client_msg))
+                chat_exists = True
+        if not chat_exists:
+            history[f"{self.name}@{self.sent_to}"] = ["{}@{}\n".format(self.name, self.client_msg)]
         update_history(history)
-        print(f"{self.name} history is {history[self.name]}")
 
     def send_file_notification(self, file_name, file_size):  # protocol: 8$$sender@file_name@file_size@file_id
         for instance in User.instances:
             if self.sent_to == instance.name:
                 instance.client_soc.sendall(f"8$${self.name}@{file_name}@{file_size}@{file_id-1}".encode())
 
-        if self.sent_to in history[self.name]:
-            history[self.name][self.sent_to].append(f"8$${self.name}@{file_name}@{file_size}@{file_id-1}")
-        else:
-            history[self.name][self.sent_to] = [f"8$${self.name}@{file_name}@{file_size}@{file_id-1}"]
-
-        if self.sent_to in history:
-            if self.name in history[self.sent_to]:
-                history[self.sent_to][self.name].append(f"8$${self.name}@{file_name}@{file_size}@{file_id-1}")
-            else:
-                history[self.sent_to][self.name] = [f"8$${self.name}@{file_name}@{file_size}@{file_id-1}"]
-        else:
-            history[self.sent_to] = {}
-            history[self.sent_to][self.name] = [f"8$${self.name}@{file_name}@{file_size}@{file_id-1}"]
+        chat_exists = False
+        for history_key in (f"{self.name}@{self.sent_to}",f"{self.sent_to}@{self.name}"):
+            if history_key in history:
+                history[history_key].append(f"8$${self.name}@{file_name}@{file_size}@{file_id-1}")
+                chat_exists = True
+        if not chat_exists:
+            history[f"{self.name}@{self.sent_to}"] = [f"8$${self.name}@{file_name}@{file_size}@{file_id-1}"]
         update_history(history)
-        print(f"{self.name} history is {history[self.name]}")
 
 
 def main():
