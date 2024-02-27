@@ -25,7 +25,7 @@ class EmojiWindow(QDialog):
 
     def select_emoji(self, emoji):
         if isinstance(self.parent(), LabelWindow):
-            self.parent().set_selected_emoji(emoji)
+            self.parent().add_selected_emoji(emoji)
         self.close()
 
 
@@ -45,8 +45,8 @@ class LabelWindow(QWidget):
         emoji_window = EmojiWindow(self)
         emoji_window.exec_()
 
-    def set_selected_emoji(self, emoji):
-        self.label.setText(emoji)
+    def add_selected_emoji(self, emoji):
+        self.label.setText(self.label.text() + emoji)
 
 
 if __name__ == "__main__":

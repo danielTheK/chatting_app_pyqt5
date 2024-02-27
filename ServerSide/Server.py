@@ -63,23 +63,18 @@ def update_files(new_files):
     with open(FILES_PATH, 'wb') as f:
         pickle.dump(new_files, f)
 
-
-def reset_all_history():  # debug purposes
+def reset_all_history(): # debug purposes
     update_file_id(0)
     update_history({})
     update_users({})
     update_files({})
-
-
 #reset_all_history()
 users = get_users()
 history = get_history()
 file_id = get_file_id()
 files = get_files()
 
-connected_users = []  # no need to save it from run to run
-
-
+connected_users = []# no need to save it from run to run
 class User:
     instances = []
 
@@ -124,15 +119,13 @@ class User:
             while True:
                 self.client_msg = self.client_soc.recv(1024)
                 if self.client_msg[:3] == b"7$$":
-                    print(len(self.client_msg[3:].split(b"@")))
-                    massage = self.client_msg[3:].split(b"@")
-                    self.sent_to, file_name, size = massage[:3]
-                    file_data = b"".join(massage[3:])
+                    self.sent_to, file_name, size, file_data = self.client_msg[3:].split(b"@@@")
                     self.sent_to, file_name = self.sent_to.decode(), file_name.decode()
                     while file_data[-7:] != b"$$END$$":
                         file_data += self.client_soc.recv(10024)
                     file_data = file_data[:-7]
-                    # self.client_soc.sendall(f"11$${file_id}".encode()) # so the sender would also have the id in case he want to download from the server either
+                    #self.client_soc.sendall(f"11$${file_id}".encode()) # so the sender would also have the id in case he want to download from the server either
+                    file_id = int(file_id)
                     with open(str(file_id), "wb") as f:
                         f.write(file_data)
                     files[str(file_id)] = file_name
@@ -141,13 +134,11 @@ class User:
                     update_file_id(file_id)
                     size = size.decode()
                     self.send_file_notification(file_name, size)
-                elif self.client_msg[:3] == b"6$$":  # requesting file
+                elif self.client_msg[:3] == b"6$$": #requesting file
                     file_id = self.client_msg[3:].decode()
                     with open(str(file_id), "rb") as f:
                         file_data = f.read()
-                    self.client_soc.sendall(
-                        f"10$${files[file_id]}$$".encode() + file_data + b"$$END$$")  # 10$${file_name}$${file}$$END$$
-                    print(f"{file_data = }")
+                    self.client_soc.sendall(f"10$${files[file_id]}$$".encode() + file_data + b"$$END$$") # 10$${file_name}$${file}$$END$$
                 else:
                     self.client_msg = self.client_msg.decode()
                     if "@" in self.client_msg:
@@ -186,21 +177,21 @@ class User:
     def send_file_notification(self, file_name, file_size):  # protocol: 8$$sender@file_name@file_size@file_id
         for instance in User.instances:
             if self.sent_to == instance.name:
-                instance.client_soc.sendall(f"8$${self.name}@{file_name}@{file_size}@{file_id - 1}".encode())
+                instance.client_soc.sendall(f"8$${self.name}@{file_name}@{file_size}@{file_id-1}".encode())
 
         if self.sent_to in history[self.name]:
-            history[self.name][self.sent_to].append(f"8$${self.name}@{file_name}@{file_size}@{file_id - 1}")
+            history[self.name][self.sent_to].append(f"8$${self.name}@{file_name}@{file_size}@{file_id-1}")
         else:
-            history[self.name][self.sent_to] = [f"8$${self.name}@{file_name}@{file_size}@{file_id - 1}"]
+            history[self.name][self.sent_to] = [f"8$${self.name}@{file_name}@{file_size}@{file_id-1}"]
 
         if self.sent_to in history:
             if self.name in history[self.sent_to]:
-                history[self.sent_to][self.name].append(f"8$${self.name}@{file_name}@{file_size}@{file_id - 1}")
+                history[self.sent_to][self.name].append(f"8$${self.name}@{file_name}@{file_size}@{file_id-1}")
             else:
-                history[self.sent_to][self.name] = [f"8$${self.name}@{file_name}@{file_size}@{file_id - 1}"]
+                history[self.sent_to][self.name] = [f"8$${self.name}@{file_name}@{file_size}@{file_id-1}"]
         else:
             history[self.sent_to] = {}
-            history[self.sent_to][self.name] = [f"8$${self.name}@{file_name}@{file_size}@{file_id - 1}"]
+            history[self.sent_to][self.name] = [f"8$${self.name}@{file_name}@{file_size}@{file_id-1}"]
         update_history(history)
         print(f"{self.name} history is {history[self.name]}")
 

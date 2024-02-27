@@ -1,4 +1,4 @@
-import sys
+"""import sys
 
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtGui import QFont
@@ -68,3 +68,26 @@ if __name__ == "__main__":
 
     sys.exit(app.exec_())
     pass
+"""
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication, QTextEdit
+
+
+class TextEdit(QTextEdit):
+    def keyPressEvent(self, event):
+        super().keyPressEvent(event)
+        if event.key() in (Qt.Key_Enter, Qt.Key_Return):
+            print("save")
+
+
+def main():
+    app = QApplication([])
+
+    w = TextEdit()
+    w.show()
+
+    app.exec_()
+
+
+if __name__ == "__main__":
+    main()

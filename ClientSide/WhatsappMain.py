@@ -4,8 +4,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import json
 import sys
 import multiprocessing
-import gzip
-import io
+
 # pylint: disable=no-name-in-module
 from PyQt5.Qt import Qt
 from PyQt5.QtCore import QEvent, QThread, pyqtSlot, QTimer, pyqtSignal
@@ -16,6 +15,8 @@ from PyQt5.QtWidgets import (QAction, QActionGroup, QApplication, QMenu,
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+
+from experiments.imojis import LabelWindow
 
 chats = {}
 drafts = {}
@@ -99,14 +100,28 @@ class MessageWidget(QtWidgets.QWidget):
         self.reply_button.setVisible(False)
         self.delete_button.setVisible(False)
 
-def get_compressed_file(file_name):
-    with open(file_name, "rb") as f:
-        return gzip.compress(f.read())
+class EmojiWindow(QDialog):
+    def __init__(self, textEdit):
+        self.textEdit = textEdit
+        super().__init__()
+        self.setWindowTitle("Select Emoji")
+        self.layout = QGridLayout()
+        self.setLayout(self.layout)
+        emojis = ["😀", "😂", "😊", "😎", "😍", "😜", "🤔", "😴", "💪", "👍", "👌", "😱"]  # https://tools.picsart.com/text/emojis/
+        row = 0
+        col = 0
+        for emoji in emojis:
+            button = QPushButton(emoji)
+            button.setFont(QFont("Arial", 20))
+            button.clicked.connect(lambda _, e=emoji: self.select_emoji(e))
+            self.layout.addWidget(button, row, col)
+            col += 1
+            if col > 3:
+                col = 0
+                row += 1
 
-def decompress_to_file(compressed_bytes, output_file_path):
-    file_data = gzip.decompress(compressed_bytes)
-    with open(output_file_path, "wb") as f:
-        f.write(file_data)
+    def select_emoji(self, emoji):
+        self.textEdit.setText(self.textEdit.toPlainText() + emoji)
 
 app = QtWidgets.QApplication(sys.argv)
 size = app.primaryScreen().availableGeometry()
@@ -158,7 +173,12 @@ class Ui_MainWhatsapp(object):
         self.textEdit = QTextEdit(self.central_widget)
         self.textEdit.setObjectName(u"textEdit")
         self.textEdit.setGeometry(
-            QRect(int(230 * width_ratio), int(510 * height_ratio), int(481 * width_ratio), int(61 * height_ratio)))
+            QRect(int(280 * width_ratio), int(510 * height_ratio), int(481 * width_ratio), int(61 * height_ratio)))
+
+        self.emoji_button = QPushButton(self.central_widget)
+        self.emoji_button.setObjectName(u"emoji_button")
+        self.emoji_button.setGeometry(QRect(int(230 * width_ratio), int(510 * height_ratio), int(50 * width_ratio), int(61 * height_ratio)))
+        self.emoji_button.clicked.connect(self.open_emoji_window)
 
         self.sendButton = QPushButton(self.central_widget)
         self.sendButton.setObjectName(u"sendButton")
@@ -227,7 +247,7 @@ class Ui_MainWhatsapp(object):
         self.contacts.itemSelectionChanged.connect(self.changeCurrentContact)
 
     def sendMessage(self):
-        text = self.textEdit.toPlainText().strip()
+        text = self.textEdit.toPlainText()
         self.textEdit.setPlainText("")
         if text != "":
             chats[self.currentContact.text()].append(f"{self.name}@{text}")
@@ -302,16 +322,18 @@ class Ui_MainWhatsapp(object):
                 self.textEdit.setPlainText("")
             for i in chats[name]:
                 if i[:3] == "8$$":
-                    self.add_notifies(i.split("@")[1], i.split("@")[2],i.split("@")[3])
+                    arguments = i.split("@")
+                    self.add_notifies(arguments[1], arguments[2],arguments[3])
                     continue
                 self.addMessage(*i.split("@"))
 
     def send_files_images_voice(self):
         file_path, _ = QFileDialog.getOpenFileName()
         if file_path:
-            file_data = get_compressed_file(file_path) #compress the file before sending it
+            with open(file_path, "rb") as f:
+                file_data = f.read()
             self.client_sock.sendall(
-                f"7$${self.currentContact.text()}@{file_path.split('/')[-1]}@{str(len(file_data) / 1048576)}@".encode() + file_data + b"$$END$$")
+                f"7$${self.currentContact.text()}@@@{file_path.split('/')[-1]}@@@{str(len(file_data) / 1048576)}@@@".encode() + file_data + b"$$END$$")
             # protocol: 7$$sent_to@file_name@file_size@file_data$$END$$
             self.add_notifies(file_path.split("/")[-1], len(file_data) / 1048576)
             chats[self.currentContact.text()].append(f"8$${self.currentContact.text()}@{file_path.split('/')[-1]}@{str(len(file_data) / 1048576)}")
@@ -335,6 +357,10 @@ class Ui_MainWhatsapp(object):
             if self.contacts.item(i).text() == name and name != self.currentContact.text():
                 self.contacts.item(i).setIcon(icon)
     #you can change the order but it will force the users and change the clicked item to the one that send the massage
+    def open_emoji_window(self):
+        emoji_window = EmojiWindow(self.textEdit)
+        emoji_window.exec_()
+
 
 class receiving_packets(QThread):
     notify_message = pyqtSignal(str, str, str)
@@ -354,14 +380,11 @@ class receiving_packets(QThread):
                 file_name = message.split(b"$$")[1].decode()
                 print(f"{file_name} is downloading!!")
                 file_data = message[(4+len(file_name)+2):] #skipping the name part of massage
-                print(message[:(4+len(file_name)+2)])
                 while file_data[-7:] != b"$$END$$":
                     file_data += self.obj.client_sock.recv(1024)
                 file_data = file_data[:-7]
-                with open(r"C:\Users\Magshimim\PycharmProjects\whatsapp_gui\ServerSide\0", "rb") as f:
-                    a = f.read()
-                print(file_data==a)
-                decompress_to_file(file_data, file_name)
+                with open(file_name,"wb") as f:
+                    f.write(file_data)
                 continue
             if message[:3] == b"8$$":  # protocal: 8$$sender@file_name@file_size@file_id
                 name, file_name, file_size,file_id = message[3:].decode().split("@")
