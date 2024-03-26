@@ -232,41 +232,79 @@ if __name__ == "__main__":
 
     sys.exit(app.exec_())
 """
-import sys
-from PyQt5.QtWidgets import QApplication, QListWidget, QPushButton, QVBoxLayout, QWidget, QInputDialog
+from PyQt5.QtWidgets import QMainWindow, QAction, QToolBar, QListWidget, QApplication, QPushButton, QVBoxLayout, \
+    QWidget, QListWidgetItem, QGridLayout
 
-class MainWindow(QWidget):
+
+class MessagesTree(QListWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setSelectionMode(self.ExtendedSelection)
+
+    def mousePressEvent(self, event):
+        item = self.itemAt(event.pos())
+        if item:
+            item.setSelected(not item.isSelected())
+            self.parent().changeToolbar()
+
+
+class MessagesTreeWidget(QWidget):  # Change here
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.layout = QGridLayout(self)  # Change here
+        self.list_widget = MessagesTree(self)  # Change here
+        self.layout.addWidget(self.list_widget,1,0)  # Change here
+        self.setup_toolbar()
+
+    def setup_toolbar(self):
+        self.toolbar = QToolBar()
+        self.toolbar.setHidden(True)
+        self.print_selected_action = QAction("Print Selected", self)
+        self.print_selected_action.triggered.connect(self.print_selected_items)
+        self.toolbar.addAction(self.print_selected_action)
+        self.layout.addWidget(self.toolbar,0,0)  # Change here
+
+    def print_selected_items(self):
+        selected_items = self.list_widget.selectedItems()
+        if selected_items:
+            print("Selected items:")
+            for item in selected_items:
+                print(item.text())
+        else:
+            print("No items selected")
+
+    def changeToolbar(self):
+        if len(self.list_widget.selectedItems()) == 0:
+            self.toolbar.setHidden(True)
+        else:
+            self.toolbar.setHidden(False)
+
+
+class Ui_Main(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("Main Window")
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.layout = QVBoxLayout(self.central_widget)
 
-        self.list_widget = QListWidget()
-        self.list_widget.addItems(["Item 1", "Item 2", "Item 3", "Item 4"])
+        self.messages_tree = MessagesTreeWidget()
+        for i in range(10):
+            self.messages_tree.list_widget.addItem(QListWidgetItem("Item %i" % i))  # Change here
+        self.layout.addWidget(self.messages_tree)
 
-        self.move_up_button = QPushButton("Move Up")
-        self.move_up_button.clicked.connect(self.move_item_up)
+        self.button = QPushButton("Custom Button")
+        self.button.clicked.connect(self.custom_button_clicked)
+        self.layout.addWidget(self.button)
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.list_widget)
-        layout.addWidget(self.move_up_button)
+    def custom_button_clicked(self):
+        print("Custom button clicked!")
 
-        self.setLayout(layout)
-
-    def move_item_up(self):
-        item_name, ok = QInputDialog.getText(self, "Move Item Up", "Enter the name of the item to move up:")
-        if ok:
-            for i in range(self.list_widget.count()):
-                if self.list_widget.item(i).text() == item_name:
-                    selected_item = self.list_widget.item(i)
-                    index = self.list_widget.row(selected_item)
-                    if index > 0:
-                        self.list_widget.takeItem(index)
-                        self.list_widget.insertItem(0, selected_item.text())
-                        self.list_widget.setCurrentRow(0)
-                    return
 
 if __name__ == "__main__":
+    import sys
+
     app = QApplication(sys.argv)
-    window = MainWindow()
-    window.setWindowTitle("Move Item Up Example")
-    window.show()
+    ui = Ui_Main()
+    ui.show()
     sys.exit(app.exec_())

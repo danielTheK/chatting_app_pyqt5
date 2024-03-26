@@ -26,9 +26,21 @@ from mutagen.mp3 import MP3
 
 MAX_RECORDING_TIME = 10
 
-
 import soundfile as sf
 from lameenc import Encoder
+
+
+class MessagesTree(QListWidget):
+    def __init__(self,changetoolbar,parent=None):
+        super().__init__(parent)
+        self.setSelectionMode(self.ExtendedSelection)
+        self.change_toolbar = changetoolbar
+
+    def mousePressEvent(self, event):
+        item = self.itemAt(event.pos())
+        if item:
+            item.setSelected(not item.isSelected())
+            self.change_toolbar(len(self.selectedItems()))
 
 class AudioRecorder(QThread):
     finished = pyqtSignal()
@@ -92,15 +104,16 @@ class return_every_second(QThread):
 
 class RecorderWidget(QWidget):
     end_recording = pyqtSignal(bool)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QGridLayout(self)
         self.label = QLabel("Recording Time: 0 seconds")
         self.stop_button = QPushButton("Stop Recording")
-        self.recorder = None# it needs to create a new Audiorecorder every time
+        self.recorder = None  # it needs to create a new Audiorecorder every time
 
-        layout.addWidget(self.label,0,0)
-        layout.addWidget(self.stop_button,0,1)
+        layout.addWidget(self.label, 0, 0)
+        layout.addWidget(self.stop_button, 0, 1)
 
         self.stop_button.clicked.connect(self.stop_recording)
 
@@ -311,10 +324,18 @@ class Ui_MainWhatsapp(object):
         self.contacts.setGeometry(
             QRect(int(10 * width_ratio), int(40 * height_ratio), int(221 * width_ratio), int(531 * height_ratio)))
 
-        self.message_list = QListWidget(self.central_widget)
-        self.message_list.setObjectName(u"message_list")
-        self.message_list.setGeometry(
-            QRect(int(230 * width_ratio), int(10 * height_ratio), int(551 * width_ratio), int(501 * height_ratio)))
+        self.messages_layout = QGridLayout(self.central_widget)
+        self.message_list = MessagesTree(self.change_messages_toolbar)
+        self.messages_layout.addWidget(self.message_list, 1, 0)
+        self.message_list.setFixedSize(int(551 * width_ratio), int(501 * height_ratio))
+        self.messages_layout.setContentsMargins(int(230 * width_ratio), int(30 * height_ratio), 0, 0)
+        self.messages_layout.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.toolbar = QToolBar()
+        self.toolbar.setHidden(True)
+        self.print_selected_action = QAction("Print Selected", self.central_widget)
+        self.print_selected_action.triggered.connect(self.print_selected_items)
+        self.toolbar.addAction(self.print_selected_action)
+        self.messages_layout.addWidget(self.toolbar, 0, 0)
 
         self.textEdit = QTextEdit(self.central_widget)
         self.textEdit.setObjectName(u"textEdit")
@@ -357,7 +378,8 @@ class Ui_MainWhatsapp(object):
 
         self.record_widget = RecorderWidget(self.central_widget)
         self.record_widget.setHidden(True)
-        self.record_widget.setGeometry(QRect(int(280 * width_ratio), int(510 * height_ratio), int(440 * width_ratio), int(61 * height_ratio)))
+        self.record_widget.setGeometry(
+            QRect(int(280 * width_ratio), int(510 * height_ratio), int(440 * width_ratio), int(61 * height_ratio)))
 
         MainWhatsapp.setCentralWidget(self.central_widget)
 
@@ -420,6 +442,7 @@ class Ui_MainWhatsapp(object):
         message_item.setSizeHint(message_widget.sizeHint() + message_widget.reply_button.sizeHint())
         if name == self.name:
             message_item.setBackground(QColor(20, 255, 20))
+            message_item.listWidget()
         else:
             message_item.setBackground(QColor(255, 0, 0))
         if self.default_widget_size == 0:
@@ -486,6 +509,19 @@ class Ui_MainWhatsapp(object):
     def remove_record_widget(self):
         self.record_widget.setHidden(True)
         self.textEdit.setHidden(False)
+
+    def print_selected_items(self):
+        selected_items = self.message_list.selectedItems()
+        if selected_items:
+            print("Selected items:")
+            for item in selected_items:
+                print(self.message_list.itemWidget(item).message_label.text())
+        else:
+            print("No items selected")
+        """cb = QApplication.clipboard()
+        cb.clear(mode=cb.Clipboard)
+        cb.setText("Copy to ClipBoard", mode=cb.Clipboard)"""
+
     def send_files_images_voice(self, action):
         if action == 0:  # send file
             file_path, _ = QFileDialog.getOpenFileName()
@@ -503,7 +539,6 @@ class Ui_MainWhatsapp(object):
             self.textEdit.setHidden(True)
             self.record_widget.start_recording()
             self.record_widget.end_recording.connect(self.remove_record_widget)
-
 
     def add_notifies(self, file_name, size, file_id=-99):
         message_widget = FileWidget(file_name, size, file_id, self.client_sock)
@@ -529,7 +564,7 @@ class Ui_MainWhatsapp(object):
         emoji_window = EmojiWindow(self.textEdit)
         emoji_window.exec_()
 
-    def open_user_data(self, *args):
+    def open_user_data(self, *args):#placeholder, in case i want to add users data
         print(self.currentContact.text())
 
     def move_item_up(self, name):
@@ -544,6 +579,10 @@ class Ui_MainWhatsapp(object):
                     self.contacts.setCurrentRow(0)
                 break
         self.contacts.setCurrentItem(item)
+
+    def change_messages_toolbar(self, num):
+        self.toolbar.setHidden(num == 0)
+
 
 
 class receiving_packets(QThread):
