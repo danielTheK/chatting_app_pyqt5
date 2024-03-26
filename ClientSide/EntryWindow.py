@@ -30,7 +30,7 @@ class UiRegisterWindow(object):
         self.central_widget = None
         self.client_sock = None
 
-    def setupUi(self, main_window, client_sock,name,password):
+    def setupUi(self, main_window, client_sock, name, password):
         self.client_sock = client_sock
         if not main_window.objectName():
             main_window.setObjectName(u"main_window")
@@ -49,13 +49,9 @@ class UiRegisterWindow(object):
         self.password_line_edit.setAlignment(Qt.AlignCenter)
         self.username_label = QLabel(self.central_widget)
         self.username_label.setObjectName(u"username_label")
-        self.username_label.setGeometry(QRect(80, 50, 281, 31))
         font1 = QFont()
         font1.setPointSize(12)
         font1.setBold(True)
-        font1.setItalic(False)
-        font1.setWeight(75)
-        self.username_label.setFont(font1)
         self.username_label.setAlignment(Qt.AlignCenter)
         self.register_button = QPushButton(self.central_widget)
         self.register_button.setObjectName(u"register_button")
@@ -91,6 +87,10 @@ class UiRegisterWindow(object):
         self.statusbar.setObjectName(u"statusbar")
         main_window.setStatusBar(self.statusbar)
 
+        font1.setItalic(False)
+        font1.setWeight(75)
+        self.username_label.setFont(font1)
+        self.username_label.setGeometry(QRect(80, 50, 281, 31))
         self.show_password_checkBox = QtWidgets.QCheckBox(self.central_widget)
         self.show_password_checkBox.setGeometry(QtCore.QRect(380, 160, 91, 18))
         self.show_password_checkBox.setObjectName("show_passwrd_checkBox")
@@ -114,13 +114,8 @@ class UiRegisterWindow(object):
         self.login_button.clicked.connect(lambda: self.login("Yes", main_window))
 
     def login(self, i, main_window):
-        try:
-            i = i.text()[1::]
-        except AttributeError:
-            pass
-
         if i == "Yes":
-            # run register whatsapp
+            # run login whatsapp
             self.window = QtWidgets.QMainWindow()
             self.ui = UiMainWindow()
             self.ui.setupUi(self.window)
@@ -133,12 +128,14 @@ class UiRegisterWindow(object):
         print(return_code)
         if return_code == "1":
             main_window.close()
+            self.login("Yes",main_window)
         else:
             msg = QMessageBox()
             msg.setWindowTitle("Username incorrect")
             msg.setText("A user with the same name already exists")
             msg.setIcon(QMessageBox.Critical)
             msg.exec_()
+
     def show_password(self, action):
         if action:
             self.password_line_edit.setEchoMode(QLineEdit.EchoMode.Normal)
@@ -161,6 +158,7 @@ class UiMainWindow(object):
         self.client_socket = None
         self.window = None
         self.ui = None
+
 
     def setupUi(self, main_window):
         if not main_window.objectName():
@@ -272,17 +270,15 @@ class UiMainWindow(object):
                 self.register("Yes", main_window)
 
     def register(self, i, main_window):
-        try:
-            i = i.text()[1::]
-        except AttributeError:
-            pass
         if i == "Yes":
             # run register whatsapp
             self.window = QtWidgets.QMainWindow()
             self.ui = UiRegisterWindow()
-            self.ui.setupUi(self.window, self.client_socket,self.username_line_edit.text(),self.password_line_edit.text())
+            self.ui.setupUi(self.window, self.client_socket, self.username_line_edit.text(),
+                            self.password_line_edit.text())
             self.window.show()
             main_window.close()
+
 
     def show_password(self, action):
         if action:

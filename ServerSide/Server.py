@@ -63,18 +63,24 @@ def update_files(new_files):
     with open(FILES_PATH, 'wb') as f:
         pickle.dump(new_files, f)
 
-def reset_all_history(): # debug purposes
+
+def reset_all_history():  # debug purposes
     update_file_id(0)
     update_history({})
     update_users({})
     update_files({})
-#reset_all_history()
+
+
+# reset_all_history()
 users = get_users()
 history = get_history()
+# history = [{"type": "group", "name": "IDK", "users": ["daniel","yossi"], "data": []}, {"type":"normal", "name":"daniel@yossi","data":[]}]
 file_id = get_file_id()
 files = get_files()
 
-connected_users = []# no need to save it from run to run
+connected_users = []  # no need to save it from run to run
+
+
 class User:
     instances = []
 
@@ -111,9 +117,8 @@ class User:
         user_history = {}
         for key in history:
             if self.name in key:
-                user_history[key.replace(self.name, "").replace("@","")] = history[key]
+                user_history[key.replace(self.name, "").replace("@", "")] = history[key]
         self.client_soc.sendall(json.dumps(user_history).encode())
-
 
         try:
             while True:
@@ -124,7 +129,7 @@ class User:
                     while file_data[-7:] != b"$$END$$":
                         file_data += self.client_soc.recv(10024)
                     file_data = file_data[:-7]
-                    #self.client_soc.sendall(f"11$${file_id}".encode()) # so the sender would also have the id in case he want to download from the server either
+                    # self.client_soc.sendall(f"11$${file_id}".encode()) # so the sender would also have the id in case he want to download from the server either
                     file_id = int(file_id)
                     with open(str(file_id), "wb") as f:
                         f.write(file_data)
@@ -134,11 +139,12 @@ class User:
                     update_file_id(file_id)
                     size = size.decode()
                     self.send_file_notification(file_name, size)
-                elif self.client_msg[:3] == b"6$$": #requesting file
+                elif self.client_msg[:3] == b"6$$":  # requesting file
                     file_id = self.client_msg[3:].decode()
                     with open(str(file_id), "rb") as f:
                         file_data = f.read()
-                    self.client_soc.sendall(f"10$${files[file_id]}$$".encode() + file_data + b"$$END$$") # 10$${file_name}$${file}$$END$$
+                    self.client_soc.sendall(
+                        f"10$${files[file_id]}$$".encode() + file_data + b"$$END$$")  # 10$${file_name}$${file}$$END$$
                 else:
                     self.client_msg = self.client_msg.decode()
                     if "@" in self.client_msg:
@@ -158,7 +164,7 @@ class User:
             if self.sent_to == instance.name:
                 instance.client_soc.sendall("{}@{}\n".format(self.name, self.client_msg).encode())
         chat_exists = False
-        for history_key in (f"{self.name}@{self.sent_to}",f"{self.sent_to}@{self.name}"):
+        for history_key in (f"{self.name}@{self.sent_to}", f"{self.sent_to}@{self.name}"):
             if history_key in history:
                 history[history_key].append("{}@{}\n".format(self.name, self.client_msg))
                 chat_exists = True
@@ -169,15 +175,15 @@ class User:
     def send_file_notification(self, file_name, file_size):  # protocol: 8$$sender@file_name@file_size@file_id
         for instance in User.instances:
             if self.sent_to == instance.name:
-                instance.client_soc.sendall(f"8$${self.name}@{file_name}@{file_size}@{file_id-1}".encode())
+                instance.client_soc.sendall(f"8$${self.name}@{file_name}@{file_size}@{file_id - 1}".encode())
 
         chat_exists = False
-        for history_key in (f"{self.name}@{self.sent_to}",f"{self.sent_to}@{self.name}"):
+        for history_key in (f"{self.name}@{self.sent_to}", f"{self.sent_to}@{self.name}"):
             if history_key in history:
-                history[history_key].append(f"8$${self.name}@{file_name}@{file_size}@{file_id-1}")
+                history[history_key].append(f"8$${self.name}@{file_name}@{file_size}@{file_id - 1}")
                 chat_exists = True
         if not chat_exists:
-            history[f"{self.name}@{self.sent_to}"] = [f"8$${self.name}@{file_name}@{file_size}@{file_id-1}"]
+            history[f"{self.name}@{self.sent_to}"] = [f"8$${self.name}@{file_name}@{file_size}@{file_id - 1}"]
         update_history(history)
 
 

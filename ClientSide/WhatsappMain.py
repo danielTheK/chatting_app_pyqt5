@@ -1,28 +1,171 @@
 # Import necessary modules
-import threading
-from PyQt5 import QtCore, QtGui, QtWidgets
+import os
+import time
+
+import pyaudio
+from PyQt5 import QtGui
 import json
 import sys
-import multiprocessing
 
 # pylint: disable=no-name-in-module
 from PyQt5.Qt import Qt
-from PyQt5.QtCore import QEvent, QThread, pyqtSlot, QTimer, pyqtSignal
-from PyQt5.QtGui import (QFocusEvent, QSyntaxHighlighter, QTextBlockUserData,
-                         QTextCharFormat, QTextCursor, QPalette, QColor)
-from PyQt5.QtWidgets import (QAction, QActionGroup, QApplication, QMenu,
-                             QPlainTextEdit, QVBoxLayout)
+from PyQt5.QtGui import QColor
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-from experiments.imojis import LabelWindow
-
 chats = {}
 drafts = {}
+from PyQt5 import QtWidgets, QtCore
+from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import QWidget, QLabel, QProgressBar, QListWidget, QPushButton, QHBoxLayout, QGridLayout, QDialog
+from playsound import playsound
+import threading
+from mutagen.mp3 import MP3
+
+MAX_RECORDING_TIME = 10
+
+
+import soundfile as sf
+from lameenc import Encoder
+
+class AudioRecorder(QThread):
+    finished = pyqtSignal()
+
+    def __init__(self, parent=None, chunk=3024, frmat=pyaudio.paInt16, channels=2, rate=44100):
+        super().__init__(parent)
+        self.CHUNK = chunk
+        self.FORMAT = frmat
+        self.CHANNELS = channels
+        self.RATE = rate
+        self.frames = []
+        self.p = pyaudio.PyAudio()
+        self.is_recording = True
+        self.recording_time = 0
+
+    def run(self):
+        self.stream = self.p.open(format=self.FORMAT, channels=self.CHANNELS, rate=self.RATE,
+                                  input=True, frames_per_buffer=self.CHUNK)
+
+        self.frames = []
+        while self.is_recording:
+            data = self.stream.read(self.CHUNK)
+            self.frames.append(data)
+
+    def stop_recording(self):
+        self.is_recording = False
+        self.stream.stop_stream()
+        self.stream.close()
+        self.p.terminate()
+        self.save_recording()
+
+    def save_recording(self):
+        # Save frames to a temporary WAV file
+        with sf.SoundFile('temp.wav', 'w', self.RATE, self.CHANNELS) as f:
+            f.write(b''.join(self.frames))
+
+        # Encode WAV to MP3 using lameenc
+        with open('temp.wav', 'rb') as wav_file:
+            encoder = Encoder()
+            encoder.set_defaults(self.RATE, self.CHANNELS, 320)
+            encoder.encode(wav_file, 'output.mp3')
+            encoder.close()
+
+        # Clean up temporary WAV file
+        os.remove('temp.wav')
+
+        self.frames = []
+
+
+class return_every_second(QThread):
+    update = pyqtSignal(int)
+
+    def __init__(self):
+        super().__init__()
+
+    def run(self):
+        for i in range(MAX_RECORDING_TIME):
+            self.update.emit(i)
+            threading.Event().wait(1)
+
+
+class RecorderWidget(QWidget):
+    end_recording = pyqtSignal(bool)
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QGridLayout(self)
+        self.label = QLabel("Recording Time: 0 seconds")
+        self.stop_button = QPushButton("Stop Recording")
+        self.recorder = None# it needs to create a new Audiorecorder every time
+
+        layout.addWidget(self.label,0,0)
+        layout.addWidget(self.stop_button,0,1)
+
+        self.stop_button.clicked.connect(self.stop_recording)
+
+    def start_recording(self):
+        self.recorder = AudioRecorder()
+        self.recorder.start()
+        self.thread = return_every_second()
+        self.thread.start()
+        self.thread.update.connect(self.update_time)
+
+    def update_time(self, num):
+        self.label.setText(f"Recording Time: {num} seconds")
+        if num == MAX_RECORDING_TIME - 1:
+            self.stop_recording()
+
+    def stop_recording(self):
+        time.sleep(0.2)  # delay
+        self.recorder.stop_recording()
+        self.thread.blockSignals(True)
+        self.end_recording.emit(True)
+
+
+class update_progress_bar(QThread):
+    update = pyqtSignal(int)
+
+    def __init__(self, duration):
+        super().__init__()
+        self.duration = duration
+
+    def run(self):
+        for i in range(self.duration + 1):
+            self.update.emit(i)
+            threading.Event().wait(0.1)
+
+
+class VoiceMessageWidget(QtWidgets.QWidget):
+    def __init__(self, path):
+        self.path = path
+        super().__init__()
+        self.filename_label = QLabel(f"File: {path.split('/')[-1]}")
+        self.play_button = QPushButton("Play")
+        self.layout = QGridLayout(self)
+        self.layout.addWidget(self.filename_label, 0, 0)
+        self.layout.addWidget(self.play_button, 0, 1)
+        self.progress_bar = QProgressBar(self)
+        self.layout.addWidget(self.progress_bar, 1, 0)
+        self.play_button.clicked.connect(self.start_playing)
+
+    def update_progress_bar(self, num):
+        self.progress_bar.setValue(num)
+
+    def play(self):
+        playsound(self.path)
+
+    def start_playing(self):
+        audio = MP3(self.path)
+        self.progress_bar.setMaximum(int(audio.info.length) * 10)
+        threading.Thread(target=self.play).start()
+        self.thread = update_progress_bar(int(audio.info.length) * 10)
+        self.thread.start()
+        self.thread.update.connect(self.update_progress_bar)
+
 
 class FileWidget(QtWidgets.QWidget):
-    def __init__(self, filename, filesize,id,sock):
+    def __init__(self, filename, filesize, id, sock):
         self.id = id
         self.sock = sock
         super(FileWidget, self).__init__()
@@ -100,6 +243,7 @@ class MessageWidget(QtWidgets.QWidget):
         self.reply_button.setVisible(False)
         self.delete_button.setVisible(False)
 
+
 class EmojiWindow(QDialog):
     def __init__(self, textEdit):
         self.textEdit = textEdit
@@ -107,7 +251,8 @@ class EmojiWindow(QDialog):
         self.setWindowTitle("Select Emoji")
         self.layout = QGridLayout()
         self.setLayout(self.layout)
-        emojis = ["😀", "😂", "😊", "😎", "😍", "😜", "🤔", "😴", "💪", "👍", "👌", "😱"]  # https://tools.picsart.com/text/emojis/
+        emojis = ["😀", "😂", "😊", "😎", "😍", "😜", "🤔", "😴", "💪", "👍", "👌",
+                  "😱", "🐶"]  # https://tools.picsart.com/text/emojis/
         row = 0
         col = 0
         for emoji in emojis:
@@ -122,6 +267,7 @@ class EmojiWindow(QDialog):
 
     def select_emoji(self, emoji):
         self.textEdit.setText(self.textEdit.toPlainText() + emoji)
+
 
 app = QtWidgets.QApplication(sys.argv)
 size = app.primaryScreen().availableGeometry()
@@ -177,14 +323,17 @@ class Ui_MainWhatsapp(object):
 
         self.emoji_button = QPushButton(self.central_widget)
         self.emoji_button.setObjectName(u"emoji_button")
-        self.emoji_button.setGeometry(QRect(int(230 * width_ratio), int(510 * height_ratio), int(50 * width_ratio), int(61 * height_ratio)))
+        self.emoji_button.setGeometry(
+            QRect(int(230 * width_ratio), int(510 * height_ratio), int(50 * width_ratio), int(61 * height_ratio)))
         self.emoji_button.clicked.connect(self.open_emoji_window)
 
         self.sendButton = QPushButton(self.central_widget)
         self.sendButton.setObjectName(u"sendButton")
-        self.sendButton.setGeometry(QRect(int(710 * width_ratio), int(530 * height_ratio), int(71 * width_ratio), int(41 * height_ratio)))
+        self.sendButton.setGeometry(
+            QRect(int(710 * width_ratio), int(530 * height_ratio), int(71 * width_ratio), int(41 * height_ratio)))
         self.sendButton.setIcon(QIcon("images/send_icon.png"))
-        self.sendButton.setIconSize(QSize(self.sendButton.width(), self.sendButton.height())) # size dont fit, button size is 62 30, need to find better image or change the size or the button
+        self.sendButton.setIconSize(QSize(self.sendButton.width(),
+                                          self.sendButton.height()))  # size dont fit, button size is 62 30, need to find better image or change the size or the button
 
         self.updateContacts = QPushButton(self.central_widget)
         self.updateContacts.setObjectName(u"updateContacts")
@@ -193,8 +342,9 @@ class Ui_MainWhatsapp(object):
 
         self.currentContact = QtWidgets.QLabel(self.central_widget)
         self.currentContact.setGeometry(
-            QtCore.QRect(int(210 * width_ratio), 0, int(591 * width_ratio), int(61 * height_ratio)))
+            QtCore.QRect(int(210 * width_ratio), 0, int(591 * width_ratio), int(40 * height_ratio)))
         self.currentContact.setObjectName("currentContact")
+        self.currentContact.mousePressEvent = self.open_user_data
 
         self.message_selection = QtWidgets.QComboBox(self.central_widget)
         self.message_selection.addItem("")
@@ -204,6 +354,10 @@ class Ui_MainWhatsapp(object):
         self.message_selection.setGeometry(
             QRect(int(710 * width_ratio), int(510 * height_ratio), int(71 * width_ratio), int(21 * height_ratio)))
         self.message_selection.setEditable(False)
+
+        self.record_widget = RecorderWidget(self.central_widget)
+        self.record_widget.setHidden(True)
+        self.record_widget.setGeometry(QRect(int(280 * width_ratio), int(510 * height_ratio), int(440 * width_ratio), int(61 * height_ratio)))
 
         MainWhatsapp.setCentralWidget(self.central_widget)
 
@@ -257,10 +411,11 @@ class Ui_MainWhatsapp(object):
 
             text = f"{self.currentContact.text()}@{text}"
             self.client_sock.sendall(text.encode())
+            self.move_item_up(self.currentContact.text())
 
     def addMessage(self, name, message):
         message_widget = MessageWidget(f"{name}:", message)
-        #self.returnWidgetsToNormal() no need for that for now, only when and if we will add buttons to messeges
+        # self.returnWidgetsToNormal() no need for that for now, only when and if we will add buttons to messeges
         message_item = QtWidgets.QListWidgetItem(self.message_list)
         message_item.setSizeHint(message_widget.sizeHint() + message_widget.reply_button.sizeHint())
         if name == self.name:
@@ -324,23 +479,34 @@ class Ui_MainWhatsapp(object):
             for i in chats[name]:
                 if i[:3] == "8$$":
                     arguments = i.split("@")
-                    self.add_notifies(arguments[1], arguments[2],arguments[3])
+                    self.add_notifies(arguments[1], arguments[2], arguments[3])
                     continue
                 self.addMessage(*i.split("@"))
 
-    def send_files_images_voice(self):
-        file_path, _ = QFileDialog.getOpenFileName()
-        if file_path:
-            with open(file_path, "rb") as f:
-                file_data = f.read()
-            self.client_sock.sendall(
-                f"7$${self.currentContact.text()}@@@{file_path.split('/')[-1]}@@@{str(len(file_data) / 1048576)}@@@".encode() + file_data + b"$$END$$")
-            # protocol: 7$$sent_to@file_name@file_size@file_data$$END$$
-            self.add_notifies(file_path.split("/")[-1], len(file_data) / 1048576)
-            chats[self.currentContact.text()].append(f"8$${self.currentContact.text()}@{file_path.split('/')[-1]}@{str(len(file_data) / 1048576)}")
+    def remove_record_widget(self):
+        self.record_widget.setHidden(True)
+        self.textEdit.setHidden(False)
+    def send_files_images_voice(self, action):
+        if action == 0:  # send file
+            file_path, _ = QFileDialog.getOpenFileName()
+            if file_path:
+                with open(file_path, "rb") as f:
+                    file_data = f.read()
+                self.client_sock.sendall(
+                    f"7$${self.currentContact.text()}@@@{file_path.split('/')[-1]}@@@{str(len(file_data) / 1048576)}@@@".encode() + file_data + b"$$END$$")
+                # protocol: 7$$sent_to@file_name@file_size@file_data$$END$$
+                self.add_notifies(file_path.split("/")[-1], len(file_data) / 1048576)
+                chats[self.currentContact.text()].append(
+                    f"8$${self.currentContact.text()}@{file_path.split('/')[-1]}@{str(len(file_data) / 1048576)}")
+        if action == 1:  # send recording
+            self.record_widget.setHidden(False)
+            self.textEdit.setHidden(True)
+            self.record_widget.start_recording()
+            self.record_widget.end_recording.connect(self.remove_record_widget)
+
 
     def add_notifies(self, file_name, size, file_id=-99):
-        message_widget = FileWidget(file_name, size,file_id,self.client_sock)
+        message_widget = FileWidget(file_name, size, file_id, self.client_sock)
         message_item = QtWidgets.QListWidgetItem(self.message_list)
         message_item.setSizeHint(message_widget.sizeHint())
         message_item.setBackground(QColor(200, 200, 200))  # thats makes the background gray
@@ -354,13 +520,28 @@ class Ui_MainWhatsapp(object):
 
     def addIcon(self, name):
         icon = QtGui.QIcon("images/Exclamation_mark.jpg")
+        self.move_item_up(name)
         for i in range(self.contacts.count()):
             if self.contacts.item(i).text() == name and name != self.currentContact.text():
                 self.contacts.item(i).setIcon(icon)
-    #you can change the order but it will force the users and change the clicked item to the one that send the massage
+
     def open_emoji_window(self):
         emoji_window = EmojiWindow(self.textEdit)
         emoji_window.exec_()
+
+    def open_user_data(self, *args):
+        print(self.currentContact.text())
+
+    def move_item_up(self, name):
+        for i in range(self.contacts.count()):
+            if self.contacts.item(i).text() == name:
+                selected_item = self.contacts.item(i)
+                index = self.contacts.row(selected_item)
+                if index > 0:
+                    self.contacts.takeItem(index)
+                    self.contacts.insertItem(0, selected_item.text())
+                    self.contacts.setCurrentRow(0)
+                return
 
 
 class receiving_packets(QThread):
@@ -380,15 +561,15 @@ class receiving_packets(QThread):
             if message[:4] == b"10$$":  # 10$${file_name}$${file}$$END$$
                 file_name = message.split(b"$$")[1].decode()
                 print(f"{file_name} is downloading!!")
-                file_data = message[(4+len(file_name)+2):] #skipping the name part of massage
+                file_data = message[(4 + len(file_name) + 2):]  # skipping the name part of massage
                 while file_data[-7:] != b"$$END$$":
                     file_data += self.obj.client_sock.recv(1024)
                 file_data = file_data[:-7]
-                with open(file_name,"wb") as f:
+                with open(file_name, "wb") as f:
                     f.write(file_data)
                 continue
             if message[:3] == b"8$$":  # protocal: 8$$sender@file_name@file_size@file_id
-                name, file_name, file_size,file_id = message[3:].decode().split("@")
+                name, file_name, file_size, file_id = message[3:].decode().split("@")
                 self.obj.addIcon(name)
                 chats[name].append(message.decode())
                 if name == self.obj.currentContact.text():
