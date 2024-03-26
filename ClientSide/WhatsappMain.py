@@ -533,6 +533,7 @@ class Ui_MainWhatsapp(object):
         print(self.currentContact.text())
 
     def move_item_up(self, name):
+        item = self.contacts.selectedItems()[0]
         for i in range(self.contacts.count()):
             if self.contacts.item(i).text() == name:
                 selected_item = self.contacts.item(i)
@@ -541,7 +542,8 @@ class Ui_MainWhatsapp(object):
                     self.contacts.takeItem(index)
                     self.contacts.insertItem(0, selected_item.text())
                     self.contacts.setCurrentRow(0)
-                return
+                break
+        self.contacts.setCurrentItem(item)
 
 
 class receiving_packets(QThread):
