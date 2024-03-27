@@ -30,10 +30,61 @@ import soundfile as sf
 from lameenc import Encoder
 
 
+class users_window(object):
+    def setupUi(self, MainWindow, users,messages, send_function):
+        MainWindow.setObjectName("MainWindow")
+        MainWindow.resize(241, 350)
+        self.window = MainWindow
+        self.send_function = send_function
+        self.messages = messages
+        self.centralwidget = QtWidgets.QWidget(MainWindow)
+        self.centralwidget.setObjectName("centralwidget")
+        self.usersList = QtWidgets.QListWidget(self.centralwidget)
+        self.usersList.setGeometry(QtCore.QRect(0, 30, 241, 271))
+        self.usersList.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
+        self.usersList.setObjectName("usersList")
+        self.selectButton = QtWidgets.QPushButton(self.centralwidget)
+        self.selectButton.setGeometry(QtCore.QRect(0, 0, 241, 31))
+        self.selectButton.setObjectName("selectButton")
+        self.selectButton.pressed.connect(self.send_to_all)
+        MainWindow.setCentralWidget(self.centralwidget)
+        self.menubar = QtWidgets.QMenuBar(MainWindow)
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 241, 22))
+        self.menubar.setObjectName("menubar")
+        MainWindow.setMenuBar(self.menubar)
+        self.statusbar = QtWidgets.QStatusBar(MainWindow)
+        self.statusbar.setObjectName("statusbar")
+        MainWindow.setStatusBar(self.statusbar)
+
+        self.retranslateUi(MainWindow)
+        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+
+        for i in users:
+            item = QtWidgets.QListWidgetItem()
+            item.setText(i)
+            self.usersList.addItem(item)
+
+    def retranslateUi(self, MainWindow):
+        _translate = QtCore.QCoreApplication.translate
+        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        self.usersList.setSortingEnabled(False)
+        __sortingEnabled = self.usersList.isSortingEnabled()
+        self.usersList.setSortingEnabled(False)
+        self.usersList.setSortingEnabled(__sortingEnabled)
+        self.selectButton.setText(_translate("MainWindow", "select"))
+        self.selectButton.setShortcut(_translate("MainWindow", "Return"))
+    def send_to_all(self):
+        for item in self.usersList.selectedItems():
+            for text in self.messages:
+                self.send_function(item.text(), text)
+        self.window.close()
+
+
+
 class MessagesTree(QListWidget):
-    def __init__(self,changetoolbar,parent=None):
+    def __init__(self, changetoolbar, parent=None):
         super().__init__(parent)
-        self.setSelectionMode(self.ExtendedSelection)
+        self.setSelectionMode(QAbstractItemView.MultiSelection)
         self.change_toolbar = changetoolbar
 
     def mousePressEvent(self, event):
@@ -41,6 +92,7 @@ class MessagesTree(QListWidget):
         if item:
             item.setSelected(not item.isSelected())
             self.change_toolbar(len(self.selectedItems()))
+
 
 class AudioRecorder(QThread):
     finished = pyqtSignal()
@@ -292,6 +344,11 @@ width_ratio = width / 1920
 height_ratio *= 1.55
 width_ratio *= 1.75
 
+# messages_toolbar_actions:
+PRINT_MESSAGES = 0
+COPY_TO_CLIPBOARD = 1
+PASS_MESSAGE = 2
+
 
 class Ui_MainWhatsapp(object):
     def __init__(self):
@@ -332,9 +389,19 @@ class Ui_MainWhatsapp(object):
         self.messages_layout.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.toolbar = QToolBar()
         self.toolbar.setHidden(True)
-        self.print_selected_action = QAction("Print Selected", self.central_widget)
-        self.print_selected_action.triggered.connect(self.print_selected_items)
-        self.toolbar.addAction(self.print_selected_action)
+
+        print_selected_action = QAction("Print Selected", self.central_widget)
+        print_selected_action.triggered.connect(lambda: self.messages_toolbar_actions(PRINT_MESSAGES))
+        self.toolbar.addAction(print_selected_action)
+
+        copy_selected_action = QAction("Copy", self.central_widget)
+        copy_selected_action.triggered.connect(lambda: self.messages_toolbar_actions(COPY_TO_CLIPBOARD))
+        self.toolbar.addAction(copy_selected_action)
+
+        pass_selected_action = QAction("Pass", self.central_widget)
+        pass_selected_action.triggered.connect(lambda: self.messages_toolbar_actions(PASS_MESSAGE))
+        self.toolbar.addAction(pass_selected_action)
+
         self.messages_layout.addWidget(self.toolbar, 0, 0)
 
         self.textEdit = QTextEdit(self.central_widget)
@@ -427,17 +494,18 @@ class Ui_MainWhatsapp(object):
         text = self.textEdit.toPlainText()
         self.textEdit.setPlainText("")
         if text != "":
-            chats[self.currentContact.text()].append(f"{self.name}@{text}")
             drafts[self.currentContact.text()] = ""
-            self.addMessage(self.name, text)
+            self.send(self.currentContact.text(), text)
 
-            text = f"{self.currentContact.text()}@{text}"
-            self.client_sock.sendall(text.encode())
-            self.move_item_up(self.currentContact.text())
+    def send(self, contact, message):
+        chats[contact].append(f"{self.name}@{message}")
+        self.addMessage(self.name, message)
+        text = f"{contact}@{message}"
+        self.client_sock.sendall(text.encode())
+        self.move_item_up(contact)
 
     def addMessage(self, name, message):
         message_widget = MessageWidget(f"{name}:", message)
-        # self.returnWidgetsToNormal() no need for that for now, only when and if we will add buttons to messeges
         message_item = QtWidgets.QListWidgetItem(self.message_list)
         message_item.setSizeHint(message_widget.sizeHint() + message_widget.reply_button.sizeHint())
         if name == self.name:
@@ -447,7 +515,6 @@ class Ui_MainWhatsapp(object):
             message_item.setBackground(QColor(255, 0, 0))
         if self.default_widget_size == 0:
             self.default_widget_size = message_item.sizeHint()
-        # this is the problem:
         self.message_list.setItemWidget(message_item, message_widget)
 
     def returnWidgetsToNormal(self):
@@ -505,22 +572,40 @@ class Ui_MainWhatsapp(object):
                     self.add_notifies(arguments[1], arguments[2], arguments[3])
                     continue
                 self.addMessage(*i.split("@"))
+            self.change_messages_toolbar(0)  # so the toolbar will become hidden
 
     def remove_record_widget(self):
         self.record_widget.setHidden(True)
         self.textEdit.setHidden(False)
 
-    def print_selected_items(self):
+    def messages_toolbar_actions(self, action):
         selected_items = self.message_list.selectedItems()
-        if selected_items:
+        if action == PRINT_MESSAGES:
             print("Selected items:")
             for item in selected_items:
+                if type(self.message_list.itemWidget(item)) == FileWidget:
+                    return  # for now it only works with simple MessageWidget
                 print(self.message_list.itemWidget(item).message_label.text())
-        else:
-            print("No items selected")
-        """cb = QApplication.clipboard()
-        cb.clear(mode=cb.Clipboard)
-        cb.setText("Copy to ClipBoard", mode=cb.Clipboard)"""
+        elif action == COPY_TO_CLIPBOARD:
+            all_texts = ""
+            for item in selected_items:
+                if type(self.message_list.itemWidget(item)) == FileWidget:
+                    return  # for now it only works with simple MessageWidget
+                all_texts += self.message_list.itemWidget(item).message_label.text()
+            cb = QApplication.clipboard()
+            cb.clear(mode=cb.Clipboard)
+            cb.setText(all_texts, mode=cb.Clipboard)
+        elif action == PASS_MESSAGE:
+            # open the users window to select who you want to pass to
+            self.window = QtWidgets.QMainWindow()
+            self.ui = users_window()
+            all_texts = []
+            for item in selected_items:
+                if type(self.message_list.itemWidget(item)) == FileWidget:
+                    return  # for now it only works with simple MessageWidget
+                all_texts.append(self.message_list.itemWidget(item).message_label.text())
+            self.ui.setupUi(self.window, [self.contacts.item(i).text() for i in range(self.contacts.count())],all_texts,send_function=self.send)
+            self.window.show()
 
     def send_files_images_voice(self, action):
         if action == 0:  # send file
@@ -564,7 +649,7 @@ class Ui_MainWhatsapp(object):
         emoji_window = EmojiWindow(self.textEdit)
         emoji_window.exec_()
 
-    def open_user_data(self, *args):#placeholder, in case i want to add users data
+    def open_user_data(self, *args):  # placeholder, in case i want to add users data
         print(self.currentContact.text())
 
     def move_item_up(self, name):
@@ -582,7 +667,6 @@ class Ui_MainWhatsapp(object):
 
     def change_messages_toolbar(self, num):
         self.toolbar.setHidden(num == 0)
-
 
 
 class receiving_packets(QThread):
