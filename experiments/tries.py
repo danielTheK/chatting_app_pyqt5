@@ -232,7 +232,7 @@ if __name__ == "__main__":
 
     sys.exit(app.exec_())
 """
-from PyQt5.QtWidgets import QMainWindow, QAction, QToolBar, QListWidget, QApplication, QPushButton, QVBoxLayout, \
+"""from PyQt5.QtWidgets import QMainWindow, QAction, QToolBar, QListWidget, QApplication, QPushButton, QVBoxLayout, \
     QWidget, QListWidgetItem, QGridLayout
 
 
@@ -308,3 +308,4 @@ if __name__ == "__main__":
     ui = Ui_Main()
     ui.show()
     sys.exit(app.exec_())
+"""

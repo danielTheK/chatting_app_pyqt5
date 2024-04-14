@@ -1,6 +1,7 @@
 # Import necessary modules
 import os
 import time
+import wave
 
 import pyaudio
 from PyQt5 import QtGui
@@ -31,7 +32,7 @@ from lameenc import Encoder
 
 
 class users_window(object):
-    def setupUi(self, MainWindow, users,messages, send_function):
+    def setupUi(self, MainWindow, users, messages, send_function):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(241, 350)
         self.window = MainWindow
@@ -73,12 +74,12 @@ class users_window(object):
         self.usersList.setSortingEnabled(__sortingEnabled)
         self.selectButton.setText(_translate("MainWindow", "select"))
         self.selectButton.setShortcut(_translate("MainWindow", "Return"))
+
     def send_to_all(self):
         for item in self.usersList.selectedItems():
             for text in self.messages:
                 self.send_function(item.text(), text)
         self.window.close()
-
 
 
 class MessagesTree(QListWidget):
@@ -113,9 +114,15 @@ class AudioRecorder(QThread):
                                   input=True, frames_per_buffer=self.CHUNK)
 
         self.frames = []
+        timer = QTimer()
+        timer.timeout.connect(self.update_recording_time)
+        timer.start(1000)  # Update every second
         while self.is_recording:
             data = self.stream.read(self.CHUNK)
             self.frames.append(data)
+
+    def update_recording_time(self):
+        self.recording_time += 1
 
     def stop_recording(self):
         self.is_recording = False
@@ -125,20 +132,12 @@ class AudioRecorder(QThread):
         self.save_recording()
 
     def save_recording(self):
-        # Save frames to a temporary WAV file
-        with sf.SoundFile('temp.wav', 'w', self.RATE, self.CHANNELS) as f:
-            f.write(b''.join(self.frames))
-
-        # Encode WAV to MP3 using lameenc
-        with open('temp.wav', 'rb') as wav_file:
-            encoder = Encoder()
-            encoder.set_defaults(self.RATE, self.CHANNELS, 320)
-            encoder.encode(wav_file, 'output.mp3')
-            encoder.close()
-
-        # Clean up temporary WAV file
-        os.remove('temp.wav')
-
+        wf = wave.open('a.wav', 'wb')
+        wf.setnchannels(self.CHANNELS)
+        wf.setsampwidth(self.p.get_sample_size(self.FORMAT))
+        wf.setframerate(self.RATE)
+        wf.writeframes(b''.join(self.frames))
+        wf.close()
         self.frames = []
 
 
@@ -155,17 +154,17 @@ class return_every_second(QThread):
 
 
 class RecorderWidget(QWidget):
-    end_recording = pyqtSignal(bool)
+    end_recording = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QGridLayout(self)
         self.label = QLabel("Recording Time: 0 seconds")
         self.stop_button = QPushButton("Stop Recording")
-        self.recorder = None  # it needs to create a new Audiorecorder every time
+        self.recorder = None
 
-        layout.addWidget(self.label, 0, 0)
-        layout.addWidget(self.stop_button, 0, 1)
+        layout.addWidget(self.label,0,0)
+        layout.addWidget(self.stop_button,0,1)
 
         self.stop_button.clicked.connect(self.stop_recording)
 
@@ -182,10 +181,10 @@ class RecorderWidget(QWidget):
             self.stop_recording()
 
     def stop_recording(self):
-        time.sleep(0.2)  # delay
+        time.sleep(0.5)
         self.recorder.stop_recording()
         self.thread.blockSignals(True)
-        self.end_recording.emit(True)
+        self.end_recording.emit()
 
 
 class update_progress_bar(QThread):
@@ -398,7 +397,7 @@ class Ui_MainWhatsapp(object):
         copy_selected_action.triggered.connect(lambda: self.messages_toolbar_actions(COPY_TO_CLIPBOARD))
         self.toolbar.addAction(copy_selected_action)
 
-        pass_selected_action = QAction("Pass", self.central_widget)
+        pass_selected_action = QAction("Forward", self.central_widget)
         pass_selected_action.triggered.connect(lambda: self.messages_toolbar_actions(PASS_MESSAGE))
         self.toolbar.addAction(pass_selected_action)
 
@@ -604,7 +603,8 @@ class Ui_MainWhatsapp(object):
                 if type(self.message_list.itemWidget(item)) == FileWidget:
                     return  # for now it only works with simple MessageWidget
                 all_texts.append(self.message_list.itemWidget(item).message_label.text())
-            self.ui.setupUi(self.window, [self.contacts.item(i).text() for i in range(self.contacts.count())],all_texts,send_function=self.send)
+            self.ui.setupUi(self.window, [self.contacts.item(i).text() for i in range(self.contacts.count())],
+                            all_texts, send_function=self.send)
             self.window.show()
 
     def send_files_images_voice(self, action):

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message App</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h2>Message App</h2>
+
+    <!-- Messages List -->
+    <ul id="messagesList">
+        {% for message in messages %}
+        <li>{{ message }}</li>
+        {% endfor %}
+    </ul>
+
+    <!-- Form for Sending Messages -->
+    <form id="messageForm">
+        <textarea id="newMessage" rows="3" cols="50" placeholder="Enter your message"></textarea><br>
+        <button type="submit">Send</button>
+    </form>
+
+    <!-- JavaScript for Sending Messages -->
+    <script>
+        $(document).ready(function() {
+            $('#messageForm').submit(function(event) {
+                event.preventDefault(); // Prevent form submission
+
+                // Get message from textarea
+                var message = $('#newMessage').val();
+
+                // Send message to server
+                $.ajax({
+                    url: '/send_message',
+                    type: 'POST',
+                    data: {msg: message},
+                    success: function(response) {
+                        console.log(response);
+                        // Update UI with the new message
+                        $('#messagesList').append('<li>' + message + '</li>');
+                        // Clear the input box
+                        $('#newMessage').val('');
+                    },
+                    error: function(xhr, status, error) {
+                        console.error(xhr.responseText);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
